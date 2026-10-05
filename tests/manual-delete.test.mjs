@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {deleteMediaManually} from '../web/manual-delete.js';
+import {deletionBlock} from '../web/lifecycle.js';
+function room(){return {playlists:{home:[{id:'live'},{id:'keep'}],event:[{id:'live'}]},lastPublished:{role:'home',items:[{id:'live'},{id:'keep'}]},uploadedIds:['live','keep'],managedEventIds:['live'],homeHistory:['live','keep'],eventHistory:['live'],cleanup:[{assetId:'live',targetIds:['live']},{assetId:'other',targetIds:['live','keep']}]};}
+function mock({fail=false,retain=false}={}){let files=[{asset_id:'live',mimetype:'video/mp4',is_enabled:true,is_active:true,is_processing:true,uri:'/data/live.mp4'}];return {assets:async()=>structuredClone(files),remove:async id=>{if(fail)throw Error('delete rejected');if(!retain)files=files.filter(a=>a.asset_id!==id);}};}
+test('manual deletion permits live assigned media and removes references after player confirmation',async()=>{const r=room(),api=mock();let saves=0;await deleteMediaManually(api,r,'live',async()=>saves++);assert.equal(saves,1);assert.deepEqual(r.playlists.home,[{id:'keep'}]);assert.deepEqual(r.playlists.event,[]);assert.deepEqual(r.lastPublished.items,[{id:'keep'}]);assert.deepEqual(r.homeHistory,['keep']);assert.deepEqual(r.cleanup,[{assetId:'other',targetIds:['keep']}]);});
+test('failed or unconfirmed deletion preserves Home/Event references',async()=>{for(const options of [{fail:true},{retain:true}]){const r=room(),before=structuredClone(r);let saves=0;await assert.rejects(deleteMediaManually(mock(options),r,'live',async()=>saves++));assert.deepEqual(r,before);assert.equal(saves,0);}});
+test('deletion clears an empty last published snapshot',async()=>{const r=room();r.lastPublished.items=[{id:'live'}];await deleteMediaManually(mock(),r,'live',async()=>{});assert.equal(r.lastPublished,null);});
+test('already absent files are removed from saved references',async()=>{const r=room();await deleteMediaManually({assets:async()=>[],remove:async()=>assert.fail('already absent')},r,'live',async()=>{});assert.deepEqual(r.playlists.event,[]);});
+test('automatic cleanup still blocks active and assigned files',()=>{const r=room();assert.ok(deletionBlock({asset_id:'live',mimetype:'video/mp4',uri:'/data/live.mp4',is_active:true},[],r,{automatic:true}));});

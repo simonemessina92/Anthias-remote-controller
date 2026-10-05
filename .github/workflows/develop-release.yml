@@ -1,0 +1,52 @@
+name: DEV tests and release
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+permissions:
+  contents: read
+concurrency:
+  group: anthias-dev-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test-and-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install integration test dependencies
+        run: sudo apt-get update && sudo apt-get install -y nginx openssl
+      - name: Verify source and installer
+        run: |
+          bash -n bootstrap.sh install.sh
+          python3 -m py_compile server.py wg-helper.py nginx-config.py scripts/build_release.py
+          for file in web/*.js; do node --check "$file"; done
+          node --test tests/*.test.mjs
+          python3 tests/test_backend.py
+          python3 tests/test_wireguard.py
+          sudo python3 tests/test_installer.py
+          python3 tests/test_nginx.py
+      - name: Build reproducible release assets
+        run: python3 scripts/build_release.py
+      - name: Publish DEV prerelease
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
+          tag="v${version}"
+          if gh release view "$tag" --json isDraft --jq '.isDraft' > /tmp/release-draft; then
+            if [ "$(cat /tmp/release-draft)" != true ]; then
+              echo "Release already published; bump the DEV version before changing its assets."
+              exit 0
+            fi
+          else
+            gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "Anthias Rooms VPS ${version}" --notes-file RELEASE_NOTES.md
+          fi
+          gh release upload "$tag" dist/* --clobber
+          gh release edit "$tag" --draft=false --prerelease
