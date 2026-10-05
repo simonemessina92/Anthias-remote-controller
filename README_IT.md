@@ -1,19 +1,18 @@
-# Anthias Rooms VPS — v0.1.0-dev4
+# Anthias Rooms VPS — v1.0.0 GOLDEN
 
-Versione VPS separata, derivata da **Anthias Rooms v1.0.0 GOLDEN**. Non è una nuova
-GOLDEN e non aggiorna l’estensione Chrome. Un’istanza gestisce una rete remota.
+Versione VPS separata, derivata da **Anthias Rooms v1.0.0 GOLDEN**. Questa è la GOLDEN VPS; non aggiorna l’estensione Chrome locale. Un’istanza gestisce una rete remota.
 
-## Primo collaudo
+## Prima installazione
 
 1. Prepara una VPS vuota Debian 12/13 o Ubuntu 22.04/24.04 con accesso root e IPv4
    pubblico. Questi sono i target dell’installer; l’installazione reale non è ancora
    stata eseguita in questo ambiente di sviluppo.
 2. Nel firewall del provider consenti TCP 80/443/8443, TCP 8444–8543 e UDP 443. Mantieni il tuo accesso
    SSH. Se UFW è attivo, aggiunge le sole regole mancanti per l’app senza disabilitarlo. Rifiuta porte 443/8443 occupate.
-3. Copia ed estrai **tutto** il pacchetto sulla VPS. Dentro la cartella estratta esegui:
+3. Come root, esegui il comando stabile:
 
    ```bash
-   sudo bash install.sh
+   bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
    ```
 
 4. Scegli `1. Install`. Inserisci IP pubblico o nome DNS e rete del tunnel
@@ -69,7 +68,7 @@ Nginx prepara il range una volta durante l’installazione; a ogni richiesta il 
 
 La GUI nativa consente modifiche dirette al player: torna al pannello Rooms e aggiorna lo stato dopo averle effettuate. Come nelle DEV precedenti, l’autenticazione Anthias sui player non è parte del collaudo; questa versione è destinata ai player senza autenticazione API della GOLDEN.
 
-## Comportamento di questa DEV
+## Comportamento
 
 Conserva pubblicazione, ripristino selettivo, editor, memoria Home, notifiche e
 protezioni di pulizia automatica della GOLDEN. La cancellazione manuale nella libreria consente invece di rimuovere anche file Home/Event, attivi o in elaborazione, dopo conferma esplicita. Solo dopo conferma dell’API vengono rimossi i riferimenti salvati a quel file. La rimozione di media in riproduzione può interrompere il playback. Le operazioni Home/Event sono ancora orchestrate
@@ -80,7 +79,7 @@ sequenze dopo la chiusura del browser. I journal consentono la verifica e il rec
 L’accesso del pannello è legato alla singola scheda: nuova apertura, duplicazione o ripristino della scheda richiedono la password; un refresh esplicito conserva l’accesso. Il token è mantenuto soltanto in memoria e sessionStorage, mai in localStorage. Il cookie da solo non autentica il pannello né le API di controllo.
 
 **Esci / Logout**, visibile anche nel wizard, revoca la sessione sul server e torna al login. I token scadono comunque dopo 12 ore e il cambio password invalida tutte le sessioni. Le GUI native router/player e i trasporti video usano un cookie HttpOnly di sola sessione: richiedono almeno una scheda pannello autenticata attiva negli ultimi 90 secondi. La chiusura invia un avviso di sospensione best effort; se il browser non lo consegna, la disponibilità delle GUI decade entro 90 secondi. Riaprire il pannello richiede sempre la password. Non è consentito disabilitare la password nel cloud.
-Questa DEV ha un unico account amministratore, non ruoli utenti o multi-tenant.
+Questa versione ha un unico account amministratore, non ruoli utenti o multi-tenant.
 
 I blocchi tra browser valgono per questa istanza VPS. La GOLDEN locale resta
 indipendente: le associazioni Home/Event salvate nel browser **non vengono
@@ -114,7 +113,7 @@ Non inviare settings.json, wg-keys.json, database o profili nei report pubblici.
 Per un backup coerente del database, usa l’API backup di SQLite o ferma il servizio
 prima di copiare `/var/lib/anthias-rooms`. Conserva separatamente e in modo sicuro
 `/etc/anthias-rooms` e `/etc/wireguard/arwg0.conf`. Non sono impostati backup periodici
-automatici in questa DEV. Per certificato attendibile con dominio, è possibile
+automatici in questa versione. Per certificato attendibile con dominio, è possibile
 configurare Certbot/Nginx; la procedura verrà adattata al dominio del collaudo.
 
 ## Remove all
@@ -136,6 +135,6 @@ dei componenti, la voce Remove all consente di rimuoverli prima di riprovare.
 
 ## Verifiche
 
-Vedi `TEST_REPORT.md` e `tests/results`. Nessun deploy o test WireGuard reale è
-stato effettuato sulla VPS o sul router di Sem. Non è ancora un servizio pronto
-per vendita: questa è la prima DEV da collaudare con quell’hardware.
+Vedi [TEST_REPORT.md](TEST_REPORT.md). Il proprietario ha approvato la promozione dopo il collaudo con un player reale. Il collaudo contemporaneo con più player resta da eseguire.
+
+`main` contiene la GOLDEN stabile; `develop` resta dedicato ai test successivi. Documentazione principale e CLI sono in inglese; il pannello resta bilingue. Per il ramo DEV usa lo stesso comando curl sostituendo `/main/` con `/develop/`.

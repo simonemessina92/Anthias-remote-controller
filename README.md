@@ -1,52 +1,95 @@
 # Anthias Remote Controller
 
-Versione VPS indipendente di **Anthias Rooms**: pannello cloud per player Anthias raggiunti attraverso un router remoto WireGuard. L’estensione Chrome **v1.0.0 GOLDEN locale resta invariata**.
+**Anthias Rooms VPS v1.0.0 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
-## Rami e release
+## Stable installation and management
 
-- **develop**: sorgenti e prerelease DEV per il collaudo.
-- **main**: riservato alla versione stabile; nessuna promozione senza approvazione esplicita di Sem. Al momento contiene soltanto il README iniziale.
-- Ogni DEV pubblicata ha tag, ZIP, bootstrap e checksum SHA-256 nella sezione [Releases](https://github.com/simonemessina92/Anthias-remote-controller/releases). GitHub Actions esegue i test prima della pubblicazione. Gli asset già pubblicati non vengono sovrascritti: per modifiche successive si incrementa la DEV.
-
-## Installazione e gestione sulla VPS
-
-Su Debian 12/13 o Ubuntu 22.04/24.04, come root:
+On a clean Debian 12/13 or Ubuntu 22.04/24.04 VPS, run as root:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
 ```
 
-Il bootstrap scarica il pacchetto della DEV indicata nel suo script, ne verifica il checksum, estrae i file temporanei e apre il menu:
+The bootstrap downloads the pinned stable release, verifies its SHA-256 checksum and opens this menu:
 
 ```text
 1. Install
 2. Remove all
 ```
 
-I download temporanei vengono rimossi quando il menu termina. Dopo l’installazione lo stesso menu è disponibile anche senza Internet:
+Select **1. Install**, enter your public IPv4 address or DNS hostname and choose the WireGuard network (default `10.77.0.0/24`). The final summary shows the setup URL, initial setup key and remote router URL. Setup details are also saved in `/root/anthias-rooms-setup.txt`.
+
+Temporary downloads are removed when the menu exits. Once installed, the same menu works offline:
 
 ```bash
 bash /opt/anthias-rooms/install.sh
 ```
 
-Il bootstrap usa il menu locale se trova un’installazione gestita. Non sovrascrive un’istanza già configurata: per passare a una nuova DEV esegui Remove all, poi rilancia il comando curl. La rimozione elimina database, credenziali, configurazione, tunnel e accessi HTTPS; dopo la reinstallazione devi importare il nuovo profilo WireGuard sul router. I file sui player restano.
+On an existing managed installation, the curl command opens this local menu. It does not overwrite or upgrade the installation. To change versions, select **Remove all**, type **REMOVE ALL**, then run the chosen bootstrap again. Reinstallation creates new keys, so import the new WireGuard profile into the router. Player media remain on the players.
 
-## Porte
+Download the complete ZIP, bootstrap and checksums from [Releases](https://github.com/simonemessina92/Anthias-remote-controller/releases). An extracted ZIP also works: run `bash install.sh` inside its folder.
 
-| Uso | Porta VPS |
+## First setup
+
+1. Allow the ports listed below in the VPS provider firewall and keep SSH access available.
+2. Open the HTTPS setup URL printed by the installer. The initial certificate is self-signed; configure a trusted certificate before providing public access.
+3. Enter the **Installation setup key** and create your administrator password. There is no default password.
+4. In **Connect remote router**, enter the actual LAN subnet behind the router, for example `192.168.8.0/24`. Generate the configuration, then **Copy configuration** or download it.
+5. Import it into the GL.iNet WireGuard client, connect and enable **Allow Remote Access LAN**. Players must use the router as their gateway. This is a split tunnel; ordinary Internet access stays on the router WAN.
+6. Select **Check connection**, then discover or add players. Discovery runs on the VPS through the VPN, using the configured remote subnet.
+7. **Open remote router** opens its native GUI through VPN at `https://YOUR-VPS:8443/`. **Access player** opens the selected player's native GUI at its assigned HTTPS port.
+
+Reserve player addresses in the router DHCP settings. No WireGuard installation or system changes are needed on the Raspberry Pi players.
+
+| Purpose | VPS port |
 |---|---|
-| Pannello | TCP 443 |
-| Redirect HTTPS | TCP 80 |
+| Control panel | TCP 443 |
+| Redirect to HTTPS | TCP 80 |
 | WireGuard | UDP 443 |
-| GUI router | TCP 8443 |
-| GUI player, assegnazione automatica | TCP 8444–8543 |
+| Remote router GUI | TCP 8443 |
+| Native player GUIs | TCP 8444–8543 |
 
-Apri le porte nel firewall del provider. UFW attivo viene mantenuto e l’installer registra le sole regole aggiunte per poterle rimuovere. Il certificato iniziale è autofirmato per il collaudo.
+The installer preserves active UFW and records only the rules it adds, so Remove all can remove those rules. Provider firewall rules are managed separately.
 
-## Accesso
+## Operation and access
 
-Password obbligatoria. Nuova scheda → login; refresh → sessione mantenuta; **Esci / Logout** → revoca immediata della sessione. Il cookie non consente accesso automatico al pannello. GUI native router/player disponibili mentre è attiva una sessione del pannello.
+Home/Event publishing, selective restoration, the editor, Home memory and automatic cleanup protections come from the approved local controller. Manual media deletion can remove Home/Event media, including live or processing files, after explicit confirmation. Saved references are removed only after the player confirms deletion; removing playing media can interrupt playback.
 
-Il primo wizard richiede la setup key riportata dall’installer e salvata in `/root/anthias-rooms-setup.txt`. Poi genera il profilo del router per la LAN remota, copialo/scaricalo e importalo in GL.iNet abilitando Allow Remote Access LAN.
+Each configured player receives a persistent, unique HTTPS port (up to 100 players). Rename, reorder and IP changes preserve its port. Removing a player revokes new requests and frees its port; targets must stay within the configured remote LAN. Close active native GUI connections/uploads before removing a player.
 
-Documentazione completa: [README_IT.md](README_IT.md), [TEST_REPORT.md](TEST_REPORT.md), [CHANGELOG.md](CHANGELOG.md).
+Opening, duplicating or restoring a panel tab requires the password. Refresh preserves that tab's session. **Logout**, also available in the wizard, immediately revokes the session. Tokens are stored in memory/sessionStorage, never localStorage; cookies alone cannot authenticate panel control APIs. Sessions expire after 12 hours and changing the password revokes all sessions.
+
+Native router/player GUIs require a panel session active within the last 90 seconds, in addition to any native router credentials. Closing a tab sends a best-effort suspension request; if the browser cannot deliver it, native GUI availability expires within 90 seconds.
+
+Keep the panel tab open while Home/Event operations run: the backend stores state and handles transport, but it is not an autonomous job runner. Native GUI edits may require refreshing the Rooms panel. Player-side Anthias API authentication is not supported by this version. Each VPS instance has one remote network and one administrator account; it is not a multi-tenant service.
+
+The original local Chrome GOLDEN remains independent. Browser and cloud Home/Event assignments are not automatically synchronized. Use one controller at a time for operations affecting the same players. Local configuration can be imported after network setup if its addresses match the remote subnet; backups do not contain media.
+
+## Branches and releases
+
+- **main**: approved stable GOLDEN versions. Use the stable command above.
+- **develop**: the next development version, published as a prerelease for testing.
+- Promotion to main requires explicit owner approval. Published release assets are immutable; subsequent changes require a new version.
+- GitHub Actions runs the automated checks before creating a release with ZIP, bootstrap and SHA-256 checksums. The same workflow handles stable releases and DEV prereleases.
+
+Development installation, on a separate test instance:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+```
+
+## Maintenance
+
+```bash
+systemctl status anthias-rooms wg-quick@arwg0
+journalctl -u anthias-rooms -f
+wg show arwg0
+```
+
+Use SQLite's backup API or stop the service before copying `/var/lib/anthias-rooms`. Keep secure backups of `/etc/anthias-rooms` and `/etc/wireguard/arwg0.conf` separately. Automatic scheduled backups are not configured. WireGuard profiles contain private keys; do not publish profiles, settings, keys or the database.
+
+Remove all deletes the application, database, sessions, keys, dedicated tunnel, Nginx proxy configuration and installer-owned firewall rules. Shared OS packages and player content are preserved.
+
+See [Italian documentation](README_IT.md), [test report](TEST_REPORT.md), [changelog](CHANGELOG.md) and [source baseline](BASELINE.md).
+
+Technical references: [WireGuard](https://www.wireguard.com/quickstart/), [GL.iNet remote LAN access](https://docs.gl-inet.com/router/en/4/tutorials/wireguard_server_access_to_client_lan_side/), [Nginx proxy](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).

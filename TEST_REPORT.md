@@ -1,51 +1,36 @@
-# Anthias Rooms VPS v0.1.0-dev4 — verifica
+# Verification report
 
-## Eseguito
+## Automated coverage
 
-- **92 test Node**: motore playlist, rollback, protezioni cleanup, memoria Home,
-  discovery, confronto editor e layout markup. Derivati dai test GOLDEN, escludendo
-  quelli della shell Chrome e dell’autenticazione locale; l’URL preview è aggiornato
-  al proxy VPS. Sono inclusi 5 test della cancellazione manuale: file live, riferimenti, errore API e protezioni automatiche conservate. Sono inclusi 3 test della sessione per nuova navigazione/ripristino, refresh e logout. Questi non sono test visivi.
-- **42 test HTTP** su un vero processo backend locale e un player Anthias simulato:
-  accesso autenticato, primo setup protetto, sessioni, blocchi tra sessioni,
-  configurazione condivisa, restrizioni dei target, percorsi API, multipart upload,
-  anteprime, modifica durata, ordine, reboot, logout; autorizzazione proxy router, diagnostica rete, scan dal backend e conteggio errori; assegnazione univoca di 100 porte player, stabilità su cambio IP/riordino, revoca, validazione atomica e mancato inoltro del cookie cloud; rifiuto cookie-only, revoca logout e indipendenza dei token tra schede.
-- **11 test helper WireGuard** con comandi di sistema simulati: route della LAN,
-  profilo split tunnel, keepalive, chiavi persistenti, permessi file, subnet vietate,
-  assenza handshake, nessun restart se configurazione invariata.
-- **2 test installer** in albero temporaneo: permessi gruppo con umask 077 e Remove all con comandi di sistema simulati. Questo ambiente mappa solo UID/GID 0: non è stata eseguita una lettura con l’utente di servizio reale.
-- Sintassi di tutti i moduli JavaScript, Python e Bash verificata.
-- SHA-256 ZIP GOLDEN invariato:
-  `4f8a36720e30f1389f026ea7ca5b4066e2b74d45303aa228ca5045794ef50192`.
-- Nessuna modifica scritta nella cartella o nello ZIP GOLDEN.
+The release workflow runs **154 tests**:
 
-## Da collaudare
+| Suite | Tests | Coverage |
+|---|---:|---|
+| Node | 92 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
+| HTTP backend | 42 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
+| WireGuard helper | 11 | LAN routes, split tunnel, keepalive, persistent keys, permissions, rejected subnets, missing handshake and unchanged configuration |
+| Installer | 2 | Permissions under umask 077 and complete removal in an isolated temporary tree using simulated system commands |
+| Nginx/TLS integration | 7 | Native GUI, absolute paths, cookie filtering, redirects, uploads, WebSocket upgrade and revoked ports |
 
-- Test di integrazione Nginx/TLS (7): eseguiti in GitHub Actions; nell’ambiente locale Nginx non è disponibile e vengono saltati. Prima della pubblicazione verificare l’esito della pipeline.
-- Collaudo su router GL.iNet e Anthias reali delle nuove sessioni e GUI native.
-- Install / Remove all su Debian/Ubuntu vuoto con systemd, Nginx e WireGuard reali.
-- Handshake UDP 443, route e Allow Remote Access LAN sul GL.iNet.
-- Estensione locale come controller di emergenza: le configurazioni dei due
-  controller sono indipendenti, non una sincronizzazione automatica.
-- UI reale, responsive su telefono, wizard, video con Range e upload lunghi.
-- Semantica API, playback HDMI e ripristino su Anthias reale.
-- Certificato attendibile, backup e gestione operativa prima della commercializzazione.
+Syntax checks cover Bash, Python and frontend JavaScript. Nginx integration tests run with real Nginx/TLS in GitHub Actions; local environments without Nginx skip them. Test player payloads are synthetic. Backend tests use `AR_TEST=1` for loopback mock players and simulated WireGuard; production installation does not set it. Automated tests do not establish real HDMI playback or VPN performance.
 
-## Comandi riproducibili
+## Hardware acceptance
+
+The owner reports successful use with a real VPS, GL.iNet router and one Anthias player, including Home/Event operation, and explicitly approved v1.0.0 GOLDEN promotion on 2026-10-05. Simultaneous operation with multiple real players remains to be tested. The port allocator is covered automatically with 100 simulated mappings; this is not a 100-device hardware test.
+
+The original Chrome GOLDEN archive remains unchanged at SHA-256 `4f8a36720e30f1389f026ea7ca5b4066e2b74d45303aa228ca5045794ef50192`.
+
+## Reproduce
 
 ```bash
 node --test tests/*.test.mjs
 python3 tests/test_backend.py
 python3 tests/test_wireguard.py
-python3 tests/test_installer.py
+sudo python3 tests/test_installer.py
 python3 tests/test_nginx.py
 python3 scripts/build_release.py
-bash -n install.sh
+bash -n bootstrap.sh install.sh
 python3 -m py_compile server.py wg-helper.py nginx-config.py
 ```
 
-I test HTTP avviano il backend con `AR_TEST=1`: solo in quel modo sono ammessi
-player loopback e viene simulato WireGuard. L’installer di produzione non imposta
-questa variabile. Le prove non attestano installazione reale né prestazioni LAN/VPN.
-
-Le funzioni Home/Event della DEV2 sono state confermate da Sem sul sistema reale prima di questa release. Il nuovo proxy GUI della DEV3 non è stato ancora verificato sul suo GL.iNet/Anthias.
+Check the GitHub Actions run for the release commit before using its assets. Further acceptance should cover multiple real players, mobile layout, long uploads/video range requests, local emergency control and the chosen trusted certificate/backup procedures.

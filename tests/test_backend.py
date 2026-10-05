@@ -193,7 +193,7 @@ class Backend(unittest.TestCase):
         jar=http.cookiejar.CookieJar();op=build_opener(HTTPCookieProcessor(jar));self.call('/ar/auth/login',{'password':'Password123'},opener=op)
         self.assertTrue(any('HttpOnly' in c._rest and c._rest.get('SameSite')=='Strict' for c in jar))
     def test_27_static_page_and_modules(self):
-        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(b'VPS v0.1.0-dev4',html)
+        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(b'VPS v1.0.0',html)
         self.assertEqual(self.call('/vps-adapter.js')[0],200)
     def test_28_storage_arbitrary_key_rejected(self):self.assertEqual(self.call('/ar/storage/set',{'items':{'auth':{'enabled':False}}})[0],400)
     def test_29_reboot_with_lock(self):

@@ -7,6 +7,8 @@ version=json.loads((ROOT/'package.json').read_text())['version']
 if f'VERSION={version}\n' not in (ROOT/'bootstrap.sh').read_text():raise SystemExit('bootstrap version mismatch')
 folder='Anthias_Rooms_VPS_v'+version
 out=ROOT/'dist';out.mkdir(exist_ok=True)
+# Keep dist limited to this version; never upload stale release assets.
+for old in out.glob('Anthias_Rooms_VPS_v*.zip'):old.unlink()
 files=[]
 for f in ROOT.rglob('*'):
  relative=f.relative_to(ROOT)

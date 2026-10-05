@@ -1,13 +1,13 @@
-name: DEV tests and release
+name: Tests and release
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
 permissions:
   contents: read
 concurrency:
-  group: anthias-dev-${{ github.ref }}
+  group: anthias-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   test-and-release:
@@ -33,20 +33,38 @@ jobs:
           python3 tests/test_nginx.py
       - name: Build reproducible release assets
         run: python3 scripts/build_release.py
-      - name: Publish DEV prerelease
-        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+      - name: Validate release channel
+        if: github.event_name == 'push'
+        run: |
+          python3 - <<'PYCHANNEL'
+          import json, os, re
+          version = json.load(open('package.json'))['version']
+          branch = os.environ['GITHUB_REF_NAME']
+          pattern = r'\d+\.\d+\.\d+' if branch == 'main' else r'\d+\.\d+\.\d+-dev\d+'
+          assert re.fullmatch(pattern, version), f'Invalid {branch} version: {version}'
+          PYCHANNEL
+      - name: Publish versioned release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')
           tag="v${version}"
+          channel=GOLDEN
+          flags=(--latest)
+          edit_flags=(--prerelease=false --latest)
+          if [ "$GITHUB_REF_NAME" = develop ]; then
+            channel=DEV
+            flags=(--prerelease --latest=false)
+            edit_flags=(--prerelease --latest=false)
+          fi
           if gh release view "$tag" --json isDraft --jq '.isDraft' > /tmp/release-draft; then
             if [ "$(cat /tmp/release-draft)" != true ]; then
-              echo "Release already published; bump the DEV version before changing its assets."
+              echo "Release already published; bump the version before changing its assets."
               exit 0
             fi
           else
-            gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title "Anthias Rooms VPS ${version}" --notes-file RELEASE_NOTES.md
+            gh release create "$tag" --target "$GITHUB_SHA" --draft "${flags[@]}" --title "Anthias Rooms VPS v${version} ${channel}" --notes-file RELEASE_NOTES.md
           fi
           gh release upload "$tag" dist/* --clobber
-          gh release edit "$tag" --draft=false --prerelease
+          gh release edit "$tag" --draft=false "${edit_flags[@]}"

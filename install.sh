@@ -21,8 +21,8 @@ install_app(){
   read -r -p 'Public VPS IPv4 address or DNS hostname: ' endpoint
   read -r -p 'WireGuard tunnel network [10.77.0.0/24]: ' tunnel
   tunnel=${tunnel:-10.77.0.0/24}
-  heading "INSTALLAZIONE ANTHIAS ROOMS VPS"
-  step 1 "Installazione dipendenze"
+  heading "INSTALL ANTHIAS ROOMS VPS"
+  step 1 "Install dependencies"
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2
   python3 - "$endpoint" "$tunnel" <<'PY'
@@ -44,7 +44,7 @@ for port in range(8444,8544):
   try:s.bind(('0.0.0.0',port))
   except OSError:raise SystemExit(f'ERROR: TCP {port} is occupied; cannot reserve player GUI ports.')
 PYPORTS
-  step 2 "Creazione servizio e permessi"
+  step 2 "Create service and permissions"
   useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin anthias-rooms
   install -d -m 755 "$APP"
   install -d -m 750 -o root -g anthias-rooms "$ETC"
@@ -122,7 +122,7 @@ ExecStop=/usr/sbin/nft delete table inet anthias_rooms
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  step 3 "Configurazione tunnel WireGuard"
+  step 3 "Configure WireGuard tunnel"
   systemctl enable --now anthias-rooms-firewall
   python3 -I "$APP/wg-helper.py" init
   systemctl enable wg-quick@arwg0
@@ -134,13 +134,13 @@ EOF
     touch "$ETC/restore-nginx-default"
     rm /etc/nginx/sites-enabled/default
   fi
-  step 4 "Configurazione HTTPS, accesso router e accessi player"
+  step 4 "Configure HTTPS, router and player access"
   python3 "$APP/nginx-config.py" "$ETC/settings.json" > /etc/nginx/sites-available/anthias-rooms
   ln -s /etc/nginx/sites-available/anthias-rooms /etc/nginx/sites-enabled/anthias-rooms
   nginx -t
   systemctl enable --now anthias-rooms
   systemctl reload nginx
-  step 5 "Verifica avvio del servizio"
+  step 5 "Verify service startup"
   # Verify as the real service user before reporting success.
   runuser -u anthias-rooms -- test -r "$APP/server.py"
   runuser -u anthias-rooms -- test -r "$APP/web/panel.html"
@@ -158,23 +158,23 @@ PYHEALTH
 import json,sys
 from pathlib import Path
 s=json.load(open(sys.argv[1]));panel='https://'+s['endpoint'];router=panel+':8443/'
-text='Pannello / procedura guidata: '+panel+'\nAccesso router (VPN collegata): '+router+'\nInstallation setup key: '+s['bootstrap']+'\n'
+text='Panel / setup wizard: '+panel+'\nRouter access (VPN connected): '+router+'\nInstallation setup key: '+s['bootstrap']+'\n'
 p=Path('/root/anthias-rooms-setup.txt');p.write_text(text);p.chmod(0o600)
 print('\n============================================================')
-print('  ANTHIAS ROOMS VPS — INSTALLAZIONE COMPLETATA')
+print('  ANTHIAS ROOMS VPS — INSTALLATION COMPLETE')
 print('============================================================')
-print('\n  1. APRI QUI PER LA PROCEDURA GUIDATA\n     '+panel)
-print('\n  2. CHIAVE PER IL PRIMO SETUP — COPIALA NEL WIZARD\n     '+s['bootstrap'])
-print('\n  3. APRI QUI PER ACCEDERE AL ROUTER\n     '+router)
-print('     Disponibile dopo import del profilo e collegamento VPN.')
-print('\n  4. ACCESSO AI PLAYER\n     Pulsante Access player nelle Info e nelle Impostazioni.')
-print('     Le porte HTTPS 8444–8543 sono assegnate automaticamente.')
-print('\n  FIREWALL DEL PROVIDER\n     TCP: 80, 443, 8443, 8444–8543 | UDP: 443')
-print('\n  Gestione locale: bash /opt/anthias-rooms/install.sh')
-print('  Bootstrap GitHub: ramo develop, release DEV verificata.')
-print('\n  Dati setup salvati: /root/anthias-rooms-setup.txt')
-print('  Certificato iniziale autofirmato: avviso browser previsto.')
-print('  Prima dell’uso pubblico configura un certificato attendibile.')
+print('\n  1. OPEN THE SETUP WIZARD HERE\n     '+panel)
+print('\n  2. INITIAL SETUP KEY — COPY IT INTO THE WIZARD\n     '+s['bootstrap'])
+print('\n  3. OPEN THE REMOTE ROUTER HERE\n     '+router)
+print('     Available after importing the profile and connecting the VPN.')
+print('\n  4. PLAYER ACCESS\n     Use Access player in Info or Settings.')
+print('     HTTPS ports 8444–8543 are assigned automatically.')
+print('\n  PROVIDER FIREWALL\n     TCP: 80, 443, 8443, 8444–8543 | UDP: 443')
+print('\n  Local management: bash /opt/anthias-rooms/install.sh')
+print('  GitHub bootstrap: main branch, verified GOLDEN release.')
+print('\n  Setup details saved to: /root/anthias-rooms-setup.txt')
+print('  Initial certificate is self-signed: a browser warning is expected.')
+print('  Configure a trusted certificate before providing public access.')
 print('============================================================\n')
 PYRESULT
 }
@@ -183,13 +183,13 @@ remove_all(){
   echo 'This removes Anthias Rooms VPS, its database, sessions, keys and dedicated tunnel. Player files are not touched.'
   read -r -p 'Type REMOVE ALL (both words) to confirm, or Enter to cancel: ' answer
   [[ "$answer" == 'REMOVE ALL' ]] || { echo 'Cancelled.'; return; }
-  heading "RIMOZIONE ANTHIAS ROOMS VPS"
-  step 1 "Arresto servizi e tunnel"
+  heading "REMOVE ANTHIAS ROOMS VPS"
+  step 1 "Stop services and tunnel"
   systemctl disable --now anthias-rooms.service || true
   systemctl disable --now wg-quick@arwg0.service || true
   systemctl disable --now anthias-rooms-firewall.service || true
   nft list table inet anthias_rooms >/dev/null 2>&1 && nft delete table inet anthias_rooms || true
-  step 2 "Rimozione accessi HTTPS router e player"
+  step 2 "Remove router and player HTTPS access"
   rm -f /etc/nginx/sites-enabled/anthias-rooms /etc/nginx/sites-available/anthias-rooms
   if [[ -f "$ETC/restore-nginx-default" && ! -e /etc/nginx/sites-enabled/default && -f /etc/nginx/sites-available/default ]]; then ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default; fi
   nginx -t
@@ -198,22 +198,22 @@ remove_all(){
   if [[ -f "$ETC/ufw-owned-rules" ]] && command -v ufw >/dev/null; then
     while IFS= read -r rule; do ufw --force delete allow "$rule" comment AnthiasRooms; done < "$ETC/ufw-owned-rules"
   fi
-  step 3 "Rimozione applicazione, database e chiavi"
+  step 3 "Remove application, database and keys"
   rm -f /root/anthias-rooms-setup.txt
   rm -f /etc/systemd/system/anthias-rooms.service /etc/systemd/system/anthias-rooms-firewall.service /etc/sudoers.d/anthias-rooms /etc/wireguard/arwg0.conf
   rm -rf -- "$APP" "$ETC" "$DATA"
   if id anthias-rooms >/dev/null 2>&1; then userdel anthias-rooms; fi
   systemctl daemon-reload
-  step 4 "Verifica componenti rimossi"
+  step 4 "Verify removed components"
   for path in "$APP" "$ETC" "$DATA" /etc/wireguard/arwg0.conf /etc/nginx/sites-enabled/anthias-rooms /etc/sudoers.d/anthias-rooms /etc/systemd/system/anthias-rooms.service /etc/systemd/system/anthias-rooms-firewall.service; do
     [[ ! -e "$path" && ! -L "$path" ]] || fail "Removal incomplete: $path remains."
   done
   [[ -z $(ip -o link show arwg0 2>/dev/null) ]] || fail 'Removal incomplete: arwg0 still exists.'
-  heading "RIMOZIONE COMPLETATA"
-  printf '  Anthias Rooms removed.\n  Rimossi: app, database, chiavi, tunnel e accessi router/player.\n  Contenuti sui player: conservati.\n  Pacchetti condivisi Nginx/Python/WireGuard: conservati.\n\n' 
+  heading "REMOVAL COMPLETE"
+  printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Shared Nginx/Python/WireGuard packages: preserved.\n\n' 
 }
 trap 'echo "Installation/action stopped at line $LINENO. Review the error above before retrying." >&2' ERR
-heading 'ANTHIAS ROOMS VPS v0.1.0-dev4'
+heading 'ANTHIAS ROOMS VPS v1.0.0 GOLDEN'
 printf '  1. Install\n  2. Remove all\n\n'
 read -r -p 'Select: ' choice
 case "$choice" in 1) install_app;; 2) remove_all;; *) fail 'Choose 1 or 2.';; esac
