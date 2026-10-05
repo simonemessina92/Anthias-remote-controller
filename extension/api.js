@@ -1,4 +1,3 @@
-import {proxyUrl,clientId,tabHeaders} from './vps-adapter.js';
 import {t} from './i18n.js';
 /* Anthias API v2. Source contracts are documented in README.md. */
 export class ApiError extends Error {
@@ -41,7 +40,7 @@ export function mediaUrl(base, asset) {
   if (!isLocalMedia(asset)) return null;
   const basename = asset.uri.split('/').pop();
   if (!basename || basename === '.' || basename === '..') return null;
-  return proxyUrl(normalizeBase(base),`/assets/${assetId(asset.asset_id)}/preview/`);
+  return `${normalizeBase(base)}/assets/${assetId(asset.asset_id)}/preview/`;
 }
 export function processingError(asset) {
   const meta = asset?.metadata || {};
@@ -81,9 +80,9 @@ export class AnthiasApi {
     if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, {once:true});
     const timer = setTimeout(abort, timeout);
     try {
-      const response = await fetch(proxyUrl(this.base,path,timeout), {
-        method, cache: 'no-store', credentials: 'same-origin', redirect: 'error',
-        headers: {...tabHeaders(),'X-AR-Client':clientId, Accept: 'application/json', ...(body !== undefined ? {'Content-Type': 'application/json'} : {})},
+      const response = await fetch(this.base + path, {
+        method, cache: 'no-store', credentials: 'omit', redirect: 'error',
+        headers: {Accept: 'application/json', ...(body !== undefined ? {'Content-Type': 'application/json'} : {})},
         ...(body !== undefined ? {body: JSON.stringify(body)} : {}), signal: controller.signal
       });
       const text = await response.text();
@@ -96,7 +95,7 @@ export class AnthiasApi {
       if (error instanceof ApiError) throw error;
       const message = error.name === 'AbortError'
         ? t('Request timed out. Verify the result of any write before retrying.')
-        : t('Player unreachable. Check the remote router, tunnel and player address.');
+        : t('Player unreachable. Check the network, address and extension permissions.');
       this.log({method, path, status: 0, error: message});
       throw new ApiError(message, 0, path);
     } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
@@ -123,9 +122,7 @@ export class AnthiasApi {
     // Single multipart transfer: no base64 copies, no blind retry, no hidden server.
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', proxyUrl(this.base,'/api/v2/file_asset'));
-      xhr.setRequestHeader('X-AR-Client',clientId);
-      for(const [key,value]of Object.entries(tabHeaders()))xhr.setRequestHeader(key,value);
+      xhr.open('POST', this.base + '/api/v2/file_asset');
       xhr.timeout = 15 * 60 * 1000;
       xhr.setRequestHeader('Accept', 'application/json');
       xhr.upload.onprogress = e => onProgress?.(e.lengthComputable ? Math.round(e.loaded / e.total * 100) : null);

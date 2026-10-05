@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-dist/
-node_modules/
-.env
-settings.json
-*.sqlite3*
-*.key
-*.conf

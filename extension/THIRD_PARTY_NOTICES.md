@@ -10,4 +10,5 @@ Anthias Rooms is a custom integration using the Anthias API. It is not presented
 as an official Anthias, Screenly, Google or BrightSign product. BrightSign artwork,
 code and fonts are not included. This package ships no font files.
 
-HTTP test payloads are generated in memory by `tests/mock_player.py`. No uploaded test photos or video files are distributed. The simulated MP4 payload verifies transport bytes only, not codec playback.
+Test-only media in `tests/browser/fixtures/` are generated local fixtures, not
+customer files, and are not loaded into a new installation's player configuration.

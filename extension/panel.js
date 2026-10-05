@@ -1,19 +1,16 @@
-import {openPlayerAccess} from './player-access.js';
-import {deleteMediaManually} from './manual-delete.js';
-import {scanViaVps,validateScanNetwork} from './server-scan.js';
-import './vps-adapter.js';
-import {remoteStatus,renderRemote} from './remote-router.js';
 import {t,setLanguage,getLanguage,translateDOM} from './i18n.js';
 import {AnthiasApi,normalizeBase,originPermission,mediaKind,isLocalMedia,assertReady,processingError,fileKind} from './api.js';
 import {loadConfig,migrateConfig,updateConfig,saveRoomSnapshot,appendPlayer,newRoom,normalizeName,unique,itemIds,readJournal,saveJournal,clearJournal,exportConfig} from './storage.js';
 import {MANUAL_SCHEDULE,playlistState,restoreJournal} from './logic.js';
-import {publishRoom,mapPlaylist,cleanupRoom,deletionBlock} from './lifecycle.js';
+import {publishRoom,mapPlaylist,cleanupRoom} from './lifecycle.js';
+import {deleteMedia,deletionPlan,deletionMessage,reconcileDeletion,validDeletionReceipt} from './manual-delete.js';
 import {authRecord,hasSession,login,setPassword,disablePassword,lockSession} from './auth.js';
 import {scanTargets,permissionsFor,scanPlayers,identifyPlayer,classifyResult,ipv4,ipString,networkSpec,playerIdentity,SCAN_PROFILES} from './discovery.js';
 import {showAssetPreview,showLocalPreview,emptyPreview,cacheUploadedPreview,forgetPreview,releasePreview,stopPreview} from './previews.js';
 
 import {editorSnapshot,editorHasChanges} from './editor-state.js';
 import {homeSelectionBlock,homeMediaDraft} from './media-library.js';
+import {getPanelAddress,copyPanelAddress} from './panel-address.js';
 
 const $=id=>document.getElementById(id),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const runtime=new Map(),operations=new Map(),roomNodes=new Map(),previewIndexes=new Map(),logs=[];
@@ -134,6 +131,7 @@ async function refreshRoom(id,{duringOperation=false}={}){
         else{s.assets=assets;s.online=true;s.error='';return;}
       }
       s.assets=assets;s.online=true;s.updated=Date.now();s.error='';
+      setTimeout(()=>void resumeManualReceipt(id).catch(error=>log(id,{error:error.message})),0);
       if(wasOnline===false&&!s.reboot&&id===selectedId)log(id,{connection:'online'});
     }catch(error){
       if(byId(id)?.base!==base||s.revision!==revision)return;
@@ -171,7 +169,8 @@ async function withRoom(id,fn,{silent=false,refreshAfter=true}={}){
       const api=apiFor(r),persist=async()=>{config=await saveRoomSnapshot(r);render();};
       const progress=(text,percent=null)=>{op.text=text;op.percent=percent;render();if(editor?.roomId===id&&editor.busy){$('editor-progress-text').textContent=text;$('editor-progress').hidden=false;if(typeof percent==='number')$('editor-progress').value=percent;else $('editor-progress').removeAttribute('value');}};
       const ensure=async()=>{if(await readJournal(id))throw new Error(t('Complete playlist recovery before other changes.'));};
-      const value=await fn({r,api,persist,progress,ensure});result={ok:true,value};
+      const ctx={r,api,persist,progress,ensure};await settleManualReceipt(ctx);
+      const value=await fn(ctx);result={ok:true,value};
       s.journal=await readJournal(id);
       if(refreshAfter)try{s.assets=await api.assets();s.online=true;s.updated=Date.now();s.error='';}catch(error){s.online=false;s.error=error.message;}
     });
@@ -302,7 +301,7 @@ async function openLibrary(id=infoRoomId,{pickForHome=false}={}){
   library={roomId:r.id,assets:[],editor:draft,selected:new Set(),loaded:false};
   $('library-title').textContent=`${label(r)} · ${t(pickForHome?'Add from player media':'Player media')}`;
   $('library-search').value='';$('library-error').textContent='';$('library-list').replaceChildren(node('p','muted',t('Loading…')));
-  $('library-note').textContent=t(pickForHome?'Select files to add to Home. Playback changes only when you publish.':'You can delete any file, including live Home/Event media. Deletion is permanent and may interrupt playback.');
+  $('library-note').textContent=t(pickForHome?'Select files to add to Home. Playback changes only when you publish.':'All player assets can be deleted after confirmation, including LIVE and assigned content.');
   $('library-use').hidden=!pickForHome;$('library-use').disabled=true;$('library-dialog').showModal();
   const ref=library;try{ref.assets=await apiFor(r).assets();if(library===ref){ref.loaded=true;state(r.id).assets=ref.assets;renderLibrary();}}
   catch(error){if(library===ref)$('library-list').replaceChildren(node('p','inline-error',error.message));}
@@ -311,18 +310,19 @@ function renderLibrary(){
   if(!library||!library.loaded)return;const r=byId(library.roomId);if(!r)return;
   const ref=library,picking=Boolean(ref.editor),term=$('library-search').value.toLowerCase();$('library-list').replaceChildren();
   $('library-title').textContent=`${label(r)} · ${t(picking?'Add from player media':'Player media')}`;
-  $('library-note').textContent=t(picking?'Select files to add to Home. Playback changes only when you publish.':'You can delete any file, including live Home/Event media. Deletion is permanent and may interrupt playback.');
-  const assets=ref.assets.filter(a=>isLocalMedia(a)&&`${titleOf(a)} ${a.asset_id}`.toLowerCase().includes(term));
+  $('library-note').textContent=t(picking?'Select files to add to Home. Playback changes only when you publish.':'All player assets can be deleted after confirmation, including LIVE and assigned content.');
+  const assets=ref.assets.filter(a=>(!picking||isLocalMedia(a))&&`${titleOf(a)} ${a.asset_id}`.toLowerCase().includes(term));
   if(!assets.length)$('library-list').append(node('p','muted',t('No matching files.')));
   for(const asset of assets){
     const row=node('div','library-row'),text=node('div','row-label'),name=node('strong','',titleOf(asset));name.title=name.textContent;row.dataset.asset=asset.asset_id;
-    const block=picking?homeSelectionBlock(asset,r,ref.editor.items):deletionBlock(asset,ref.assets,r);
+    const plan=picking?null:deletionPlan(ref.assets,r,asset.asset_id);
+    const block=picking?homeSelectionBlock(asset,r,ref.editor.items):[plan?.live?'LIVE':'',...(plan?.roles||[]).map(role=>t(role==='home'?'Home content':'Event'))].filter(Boolean).join(' · ');
     if(picking){
       const check=node('input');check.type='checkbox';check.disabled=Boolean(block);check.checked=ref.selected.has(asset.asset_id);check.setAttribute('aria-label',titleOf(asset));
       action(check,()=>{if(library!==ref)return;$('library-error').textContent='';if(check.checked)ref.selected.add(asset.asset_id);else ref.selected.delete(asset.asset_id);$('library-use').disabled=!ref.selected.size;},'change');row.append(checkboxHit(check));
     }else row.append(node('span','room-num',mediaKind(asset)==='video'?'▶':'▧'));
     text.append(name,node('small','',describe(asset)));if(block)text.append(node('small','file-protection',block));row.append(text);
-    if(!picking){const b=button(t('Delete'),'btn danger',()=>deleteLibraryAsset(asset.asset_id));b.disabled=operations.has(ref.roomId);b.title=t('Delete this file permanently, even if it is live or assigned.');row.append(b);}
+    if(!picking){const b=button(t('Delete'),'btn danger',()=>deleteLibraryAsset(asset.asset_id));b.disabled=Boolean(ref.busy);b.title=t('Delete after confirmation');row.append(b);}
     $('library-list').append(row);
   }
   $('library-use').disabled=!picking||!ref.selected.size;
@@ -339,18 +339,55 @@ function useHomeMedia(){
     draft.items.push(...additions);closeDialog('library-dialog');renderEditor();
   }catch(error){$('library-error').textContent=error.message;}
 }
-async function deleteLibraryAsset(id){
-  const ref=library;if(!ref||!await confirmAction(t('Delete file?'),t('This permanently deletes the file from the player and removes it from Home/Event. If it is live, playback may stop. Continue?'),t('Delete'),true))return;
-  const result=await withRoom(ref.roomId,async ctx=>{await ctx.ensure();await deleteMediaManually(ctx.api,ctx.r,id,ctx.persist);void forgetPreview(ctx.r.base,id);if(editor?.roomId===ref.roomId){editor.items=editor.items.filter(item=>item.id!==id);renderEditor();}});
-  if(result.ok&&library===ref){ref.assets=state(ref.roomId).assets;renderLibrary();}
+const manualReceiptKey=id=>`hmrManualDelete:${id}`;
+function deletionHooks(ctx){
+  const key=manualReceiptKey(ctx.r.id);
+  return {persist:ctx.persist,clearReceipt:()=>chrome.storage.local.remove(key),
+    onDeleted:async id=>{await forgetPreview(ctx.r.base,id);for(const role of ['home','event'])previewIndexes.delete(`${ctx.r.id}:${role}`);}};
 }
+async function settleManualReceipt(ctx){
+  const key=manualReceiptKey(ctx.r.id),receipt=(await chrome.storage.local.get(key))[key];
+  if(!validDeletionReceipt(receipt,ctx.r.base))return;
+  return reconcileDeletion(ctx.api,ctx.r,receipt,deletionHooks(ctx));
+}
+async function resumeManualReceipt(id){
+  if(!admitted||operations.has(id)||state(id).reboot)return;
+  const r=byId(id);if(!r)return;
+  const receipt=(await chrome.storage.local.get(manualReceiptKey(id)))[manualReceiptKey(id)];
+  if(validDeletionReceipt(receipt,r.base))await withRoom(id,async()=>{}, {silent:true});
+}
+async function deleteLibraryAsset(id){
+  const ref=library;if(!ref||ref.editor||ref.busy)return;
+  ref.busy=true;$('library-error').textContent='';renderLibrary();
+  const result=await withRoom(ref.roomId,async ctx=>{
+    await ctx.ensure();
+    return deleteMedia(ctx.api,ctx.r,id,{
+      ...deletionHooks(ctx),progress:ctx.progress,authorize:requireUnlocked,
+      saveReceipt:value=>chrome.storage.local.set({[manualReceiptKey(ctx.r.id)]:value}),
+      confirm:plan=>confirmAction(`${t(plan.live?'Delete LIVE content?':'Delete file?')} · ${label(ctx.r)}`,
+        deletionMessage(plan),t('Delete permanently'),true)
+    });
+  });
+  if(library===ref){
+    ref.busy=false;
+    // Refresh even after a partial failure: never continue to offer removed entries.
+    try{ref.assets=await apiFor(byId(ref.roomId)).assets();state(ref.roomId).assets=ref.assets;}
+    catch(error){$('library-error').textContent=error.message;}
+    if(!result.ok)$('library-error').textContent=result.error||'';
+    renderLibrary();render();
+  }
+  if(result.ok&&!result.value?.cancelled)toast(`${label(byId(ref.roomId))}: ${t(result.value?.alreadyAbsent?
+    'Asset was already absent. Panel references updated.':'Deleted from player and panel playlists.')}`);
+}
+
 function openLargePreview(role){stopPreview($(`${role}-preview`));const r=room();if(!r)return;const {items}=getShown(r,role),index=previewIndexes.get(`${r.id}:${role}`)||0,asset=state(r.id).assets.find(a=>a.asset_id===items[index]?.id);if(!asset)return;$('preview-title').textContent=titleOf(asset);showAssetPreview($('large-preview'),r.base,asset);$('preview-dialog').showModal();}
 function renderSettings(){
+  if(document.activeElement!==$('panel-address'))$('panel-address').value=getPanelAddress();
   $('language').value=config.language;$('auto-cleanup').checked=config.autoCleanup;if(document.activeElement!==$('image-duration'))$('image-duration').value=config.defaultImageDuration;
-  $('security-status').textContent=t(security?.enabled?'Password enabled':'Password disabled');$('change-password').textContent=t(security?.enabled?'Change password':'Set password');$('disable-password').hidden=true;
+  $('security-status').textContent=t(security?.enabled?'Password enabled':'Password disabled');$('change-password').textContent=t(security?.enabled?'Change password':'Set password');$('disable-password').hidden=!security?.enabled;
   const signature=JSON.stringify([getLanguage(),config.rooms.map(r=>[r.id,r.number,r.name,r.base])]);
   if(signature!==settingsSignature){settingsSignature=signature;$('settings-rooms').replaceChildren();
-    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions');actions.append(button(t('Access player'),'text-btn',()=>openPlayerAccess(r.id)),button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
+    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions');actions.append(button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
     if(!config.rooms.length)$('settings-rooms').append(node('p','muted',t('No players yet')));
   }
   for(const row of $('settings-rooms').children){if(!row.dataset.room)continue;row.querySelectorAll('button').forEach(b=>{b.disabled=operations.has(row.dataset.room);});}
@@ -402,7 +439,7 @@ async function grantAccess(){
   toast(t('Network access granted.'));void refreshAll();for(const r of config.rooms)void rememberIdentity(r.id);
 }
 async function changeLanguage(value){
-  if(!security){config.language=value==='it'?'it':'en';}else config=await updateConfig(latest=>{latest.language=value==='it'?'it':'en';});setLanguage(config.language);translateDOM();settingsSignature='';
+  config=await updateConfig(latest=>{latest.language=value==='it'?'it':'en';});setLanguage(config.language);translateDOM();settingsSignature='';
   if(!admitted)renderGate();else{render();if(editor&&!editor.busy)renderEditor();if(library)renderLibrary();if(fleet&&!fleet.running)updateFleetRows();}
 }
 async function openFleet(){
@@ -440,7 +477,7 @@ async function runFleet(){
   }finally{ref.running=false;ref.done=true;$('fleet-go').hidden=true;$('fleet-dialog').querySelectorAll('[data-close]').forEach(b=>{b.disabled=false;});$('fleet-result').textContent=t('{ok} restored · {failed} incomplete · {skipped} not selected',{ok,failed,skipped:ref.rows.size-ids.length});render();}
 }
 async function openInfo(id){
-  const r=byId(id);if(!r?.base)return;infoRoomId=id;$('open-anthias').disabled=!r.base;$('info-title').textContent=label(r);$('info-data').replaceChildren(node('dt','',t('Loading…')));$('info-dialog').showModal();
+  const r=byId(id);if(!r?.base)return;infoRoomId=id;$('info-title').textContent=label(r);$('info-data').replaceChildren(node('dt','',t('Loading…')));$('info-dialog').showModal();
   try{const info=await apiFor(r).info();state(id).info=info;if(infoRoomId!==id||!$('info-dialog').open)return;$('info-data').replaceChildren();const values=[['Model',info.device_model],['Anthias',info.anthias_version],['Address',r.base],['Free space',info.free_space],['Storage',info.storage?.status],['Display',info.display_power]];values.forEach(([key,value])=>$('info-data').append(node('dt','',t(key)),node('dd','',value||'—')));void rememberIdentity(id);}catch(error){if(infoRoomId===id)$('info-data').replaceChildren(node('dd','inline-error',error.message));}
 }
 async function rebootPlayer(id){
@@ -548,8 +585,7 @@ async function startDiscovery(deep=false){
     if(!deep){ref.found=[];ref.selected.clear();ref.nodes.clear();$('scan-results').replaceChildren();}
     $('scan-address').value=spec.address;$('scan-subnet').value=spec.subnet;
     $('scan-error').textContent='';$('scan-progress').value=0;$('scan-deep').hidden=true;
-    $('scan-status').textContent=t('Checking the VPS tunnel and remote subnet…');setDiscoveryBusy(ref);
-    await validateScanNetwork(spec);if(ref.controller.signal.aborted)return;
+    $('scan-status').textContent=t('Waiting for network permission…');setDiscoveryBusy(ref);
     // This call must remain directly within the Search click, before any await.
     const permission=chrome.permissions.request({origins:permissionsFor(targets)});
     if(!await permission)throw new Error(t('Permission not granted. No changes saved.'));
@@ -558,7 +594,7 @@ async function startDiscovery(deep=false){
     if(discovery!==ref||ref.controller.signal.aborted)return;
     $('scan-status').textContent=t(deep?'Checking slower devices…':'Searching…');
     const profile=deep?SCAN_PROFILES.thorough:SCAN_PROFILES.quick;
-    ref.scanDone=scanViaVps(targets,{...profile,known:discoveryPlayers().map(r=>r.base),signal:ref.controller.signal,
+    ref.scanDone=scanPlayers(targets,{...profile,known:discoveryPlayers().map(r=>r.base),signal:ref.controller.signal,
       onResult:found=>{
         if(discovery!==ref||ref.adding)return;
         if(ref.nodes.has(found.base))return;
@@ -575,7 +611,6 @@ async function startDiscovery(deep=false){
     ref.unresolved=result.unresolved;
     $('scan-status').textContent=`${t(result.stopped?'Scan stopped':'Scan finished')} · ${t('Found: {found} · {seconds}s',{found:ref.found.length,seconds:(result.elapsedMs/1000).toFixed(1)})}`;
     $('scan-deep').hidden=!ref.unresolved.length;
-    if(!ref.found.length&&Object.keys(result.errors||{}).length){$('scan-error').textContent=t('Scan executed on VPS through WireGuard')+' · '+Object.entries(result.errors).map(([reason,count])=>`${t(reason)}: ${count}`).join(' · ');}
     if(!ref.found.length){const hint=node('p','hint scan-empty',t('No players detected. Check the subnet or try the more thorough search.'));$('scan-results').append(hint);}
   }catch(error){if(discovery===ref)$('scan-error').textContent=error.message;}
   finally{ref.running=false;if(discovery===ref)setDiscoveryBusy(ref);}
@@ -647,26 +682,23 @@ function gateLabel(text,input){const l=node('label');l.append(node('span','',t(t
 function gateError(error){const el=$('gate-error');if(el)el.textContent=error.message||String(error);else report(error);}
 function gateSteps(current){const steps=node('div','wizard-steps');for(let i=1;i<=3;i++)steps.append(node('span',i<=current?'active':''));return steps;}
 function renderGate(){
-  if(admitted)return;$('gate-logout').hidden=!security?.enabled||!hasSession(security);$('gate-language').value=config.language;const body=$('gate-body'),footer=$('gate-footer');body.replaceChildren();footer.replaceChildren();
+  if(admitted)return;$('gate-language').value=config.language;const body=$('gate-body'),footer=$('gate-footer');body.replaceChildren();footer.replaceChildren();
   if(gateStage==='welcome'){
     body.append(node('span','eyebrow',t('Initial setup')),node('div','gate-symbol','▦'),node('h1','',t('Welcome to Anthias Rooms')),node('p','muted',t('Connect your displays, then add their Anthias players.')));
     const options=node('div','welcome-actions');options.append(button(t('Start setup'),'btn primary',()=>showGate('password')),button(t('Import an existing configuration'),'btn secondary',()=>$('import-file').click()));body.append(options,node('p','hint',t('Configuration only: media files and the local password are not included.')));
-    // Cloud setup cannot skip authentication.
+    footer.append(button(t('Skip setup'),'text-btn',skipSetup));
   }else if(gateStage==='login'){
     body.append(node('div','gate-symbol','◇'),node('h1','',t('Panel locked')));
-    const form=node('form','gate-form'),input=node('input');input.id='gate-password';input.type='password';input.maxLength=128;input.required=true;input.autocomplete='current-password';form.append(gateLabel('Password',input));const error=node('p','inline-error');error.id='gate-error';error.setAttribute('role','alert');form.append(error);body.append(form,node('p','hint',t('Sign in with your server password. Configuration exports do not include credentials.')));
+    const form=node('form','gate-form'),input=node('input');input.id='gate-password';input.type='password';input.maxLength=128;input.required=true;input.autocomplete='current-password';form.append(gateLabel('Password',input));const error=node('p','inline-error');error.id='gate-error';error.setAttribute('role','alert');form.append(error);body.append(form,node('p','hint',t('Local password is not recoverable. Your configuration backup does not contain it.')));
     const submit=button(t('Unlock'),'btn primary',()=>form.requestSubmit());footer.append(submit);
     action(form,async e=>{e.preventDefault();if(wizardBusy)return;wizardBusy=true;submit.disabled=true;try{security=await login(input.value);input.value='';await routeGate();}catch(error){gateError(error);}finally{wizardBusy=false;submit.disabled=false;}},'submit');setTimeout(()=>input.focus(),40);
   }else if(gateStage==='password'||gateStage==='security'){
     const setup=gateStage==='password';body.append(gateSteps(1),node('span','eyebrow',t(setup?'Set up your panel':'Security')),node('h1','',t('Create your password')));
-    body.append(node('p','hint',t(setup?'Server login protects cloud access. Anthias players remain private behind the router.':'Your players have been preserved. Choose a local password or explicitly continue without protection.')));
-    const form=node('form','gate-form'),first=node('input'),second=node('input');for(const i of [first,second]){i.type='password';i.minLength=8;i.maxLength=128;i.required=true;i.autocomplete='new-password';}first.id='setup-password';second.id='setup-confirm';if(!security){const key=node('input');key.id='setup-key';key.type='password';key.required=true;key.autocomplete='off';form.append(gateLabel('Installation setup key',key));}
-    form.append(gateLabel('New password',first),gateLabel('Confirm password',second),node('small','hint',t('At least 8 characters')));const error=node('p','inline-error');error.id='gate-error';form.append(error);body.append(form);
-    if(setup)footer.append(button(t('Back'),'text-btn',()=>showGate('welcome')));// Cloud access always requires server authentication.
+    body.append(node('p','hint',t(setup?'Local panel protection only. This does not add authentication to Anthias or encrypt its media.':'Your players have been preserved. Choose a local password or explicitly continue without protection.')));
+    const form=node('form','gate-form'),first=node('input'),second=node('input');for(const i of [first,second]){i.type='password';i.minLength=8;i.maxLength=128;i.required=true;i.autocomplete='new-password';}first.id='setup-password';second.id='setup-confirm';form.append(gateLabel('New password',first),gateLabel('Confirm password',second),node('small','hint',t('At least 8 characters')));const error=node('p','inline-error');error.id='gate-error';form.append(error);body.append(form);
+    if(setup)footer.append(button(t('Back'),'text-btn',()=>showGate('welcome')));else footer.append(button(t('Continue without password'),'text-btn',skipSecurity));
     const submit=button(t('Save password'),'btn primary',()=>form.requestSubmit());footer.append(submit);
-    action(form,async e=>{e.preventDefault();if(wizardBusy)return;wizardBusy=true;submit.disabled=true;try{security=await setPassword(first.value,second.value);const chosenLanguage=config.language;config=await updateConfig(latest=>{latest.language=chosenLanguage;});first.value=second.value='';if(setup)showGate('remote');else await routeGate();}catch(error){gateError(error);}finally{wizardBusy=false;submit.disabled=false;}},'submit');
-  }else if(gateStage==='remote'){
-    void renderRemote(body,footer,async remote=>{config=await updateConfig(latest=>{latest.discovery={...latest.discovery,address:remote.subnet.split('/')[0],subnet:remote.subnet.split('/')[1]};});showGate(config.setupComplete?'done':'players');});
+    action(form,async e=>{e.preventDefault();if(wizardBusy)return;wizardBusy=true;submit.disabled=true;try{security=await setPassword(first.value,second.value);first.value=second.value='';if(setup)showGate('players');else await routeGate();}catch(error){gateError(error);}finally{wizardBusy=false;submit.disabled=false;}},'submit');
   }else if(gateStage==='players'){
     body.append(gateSteps(2),node('span','eyebrow',t('Initial setup')),node('h1','',t('Choose your players')));
     const tools=node('div','wizard-tools'),count=node('input');count.id='wizard-count';count.type='number';count.min=1;count.max=100;count.value=wizardRows.length||1;
@@ -701,7 +733,6 @@ async function skipSecurity(){
   security=await disablePassword();await routeGate();
 }
 async function skipSetup(){
-  if(!security)throw new Error(t('Cloud access requires a password.'));
   security=await authRecord();
   if(!security?.enabled){if(!await confirmAction(t('Skip without password?'),t('The panel will remain unprotected until you enable a password in Settings. No players are added automatically.'),t('Skip setup')))return;security=await disablePassword();}
   config=await updateConfig(latest=>{latest.setupComplete=true;latest.wizardDraft=null;});wizardRows=[];await routeGate();
@@ -709,10 +740,7 @@ async function skipSetup(){
 async function routeGate(){
   security=await authRecord();
   if(security?.enabled&&!hasSession(security)){showGate('login');return;}
-  if(security&&hasSession(security))config=await loadConfig();
-  if(!security){showGate('welcome');return;}
-  const remote=await remoteStatus();if(!remote.remote){showGate('remote');return;}
-  if(!config.setupComplete){showGate('players');return;}
+  if(!config.setupComplete){showGate(security?'players':'welcome');return;}
   if(!security){showGate('security');return;}
   await admit();
 }
@@ -743,12 +771,10 @@ function bind(){
   action($('configure-player'),()=>openPlayer(selectedId));action($('player-form'),savePlayer,'submit');action($('player-name'),updateNameCount,'input');
   action($('room-search'),renderRooms,'input');action($('grant-access'),grantAccess);
   action($('language'),e=>changeLanguage(e.target.value),'change');action($('gate-language'),e=>changeLanguage(e.target.value),'change');
-  window.addEventListener('ar-session-expired',()=>{if(admitted){for(const d of document.querySelectorAll('dialog[open]'))d.close();editor=null;library=null;showGate('login');}});
   action($('auto-cleanup'),async e=>{const value=e.target.checked;await requireUnlocked();config=await updateConfig(latest=>{latest.autoCleanup=value;});render();toast(t('Settings saved.'));},'change');
   action($('image-duration'),async e=>{const value=Number(e.target.value);if(!Number.isInteger(value)||value<1||value>86400){e.target.value=config.defaultImageDuration;throw new Error(t('Image duration must be between 1 and 86400 seconds.'));}await requireUnlocked();config=await updateConfig(latest=>{latest.defaultImageDuration=value;});toast(t('Settings saved.'));},'change');
   action($('change-password'),()=>openSecurity('change'));action($('disable-password'),()=>openSecurity('disable'));action($('security-form'),saveSecurity,'submit');
-  const logoutPanel=async()=>{if(operations.size||fleet?.running)throw new Error(t('Finish the current operation first.'));try{await lockSession();}finally{for(const d of document.querySelectorAll('dialog[open]'))d.close();editor=null;library=null;showGate('login');}};
-  action($('lock'),logoutPanel);action($('gate-logout'),logoutPanel);
+  action($('lock'),()=>{if(operations.size||fleet?.running)throw new Error(t('Finish the current operation first.'));lockSession();for(const d of document.querySelectorAll('dialog[open]'))d.close();editor=null;library=null;showGate('login');});
   action($('refresh'),async()=>{$('refresh').classList.add('refreshing');try{await refreshAll();}finally{$('refresh').classList.remove('refreshing');}});
   action($('toast-close'),hideToast);window.addEventListener('resize',positionToast);
   const noticeObserver=new ResizeObserver(positionToast);for(const id of ['notice-anchor','settings-notice-anchor','toast'])noticeObserver.observe($(id));
@@ -773,12 +799,11 @@ function bind(){
   action($('scan-go'),()=>startDiscovery(false));action($('scan-deep'),()=>startDiscovery(true));
   for(const id of ['scan-address','scan-subnet','scan-port','scan-protocol'])action($(id),updateDiscoveryNetwork,id==='scan-protocol'?'change':'input');action($('scan-stop'),stopDiscovery);action($('scan-add'),addDiscovered);action($('discovery-close'),closeDiscovery);action($('discovery-done'),closeDiscovery);
   $('discovery-dialog').addEventListener('cancel',e=>{e.preventDefault();closeDiscovery();});
+  action($('copy-panel-address'),async()=>{await requireUnlocked();const copied=await copyPanelAddress($('panel-address'));toast(t(copied?'Panel address copied.':'Copy was blocked by the browser. The address is selected: press Ctrl+C or use Copy.'),copied?'success':'warning');});
   action($('export-config'),async()=>{await requireUnlocked();downloadJson('anthias-rooms-config.json',exportConfig(config));});action($('import-config'),()=>$('import-file').click());
   action($('import-file'),e=>{const file=e.target.files[0];e.target.value='';if(file)return importConfigFile(file);},'change');
-  $('router-gui').href=`https://${location.hostname}:8443/`;
-  action($('remote-router'),()=>showGate('remote'));
-  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'1.0.0-vps',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')))});});
-  action($('open-anthias'),()=>openPlayerAccess(infoRoomId));
+  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'3.0.0',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')||key.startsWith('hmrManualDelete:')))});});
+  action($('open-anthias'),()=>{const r=byId(infoRoomId);if(r?.base)chrome.tabs.create({url:r.base});});
   action($('reboot'),()=>rebootPlayer(infoRoomId));action($('quick-reboot'),()=>rebootPlayer(selectedId));
   document.querySelectorAll('[data-close]').forEach(b=>action(b,()=>closeDialog(b.dataset.close)));
   $('player-dialog').addEventListener('cancel',e=>{if(savingPlayer)e.preventDefault();});

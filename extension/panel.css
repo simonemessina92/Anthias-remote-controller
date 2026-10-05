@@ -1843,18 +1843,9 @@ they never cover publishing controls. */
   .content-card {gap:12px;padding:24px}
 }
 
-/* VPS mobile layout: desktop GOLDEN layout is retained above this breakpoint. */
-@media(max-width:900px){
- html,body{height:auto;min-height:100%;overflow:auto}.app{height:auto;min-height:100dvh}.app-body{display:block;height:auto;overflow:visible}.sidebar{width:100%;max-height:220px}.sidebar .room-list{max-height:130px}main{overflow:visible}.content-view,.settings-view{height:auto;overflow:visible}.work-area{grid-template-columns:1fr;overflow:visible;flex:none}.room-content{height:auto;overflow:visible}.content-card{min-height:520px}.settings-grid{display:block}.settings-right{overflow:visible}.topbar{flex-wrap:wrap;height:auto;gap:10px;padding:12px}.page-heading{flex-wrap:wrap;gap:12px}.dialog{max-width:96vw}.wizard-row{grid-template-columns:28px 1fr}.gate-shell{width:min(94vw,900px)}
-}
+/* v2: canonical extension address, confined to the existing Settings scroll area. */
+.panel-link-label { display:block; color:var(--muted); font-size:.85rem; margin-bottom:.5rem; }
+.panel-address-input { width:100%; min-width:0; font-family:ui-monospace,Consolas,monospace; font-size:.85rem; margin-bottom:.8rem; }
 
-#disable-password{display:none!important}
-
-.remote-profile-actions{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
-.remote-profile-actions .btn{flex:1;min-width:200px}
-.remote-profile{margin:12px 0}
-.remote-profile summary{cursor:pointer;color:var(--muted);margin-bottom:8px}
-.remote-profile textarea{width:100%;font-family:monospace;font-size:13px;resize:vertical}
-a.btn[aria-disabled="true"]{opacity:.45;cursor:default;pointer-events:none;text-decoration:none}
-
-.logout-btn{white-space:nowrap;padding:8px 14px}
+/* Explicit deletion impact stays readable in short and touch viewports. */
+#confirm-text { white-space: pre-line; overflow-wrap: anywhere; }

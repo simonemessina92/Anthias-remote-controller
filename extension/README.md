@@ -32,16 +32,3 @@ Replace the files in the **same extension folder** and click **Reload** in `chro
 - Panel URL: `chrome-extension://cfhcncajkcblicinnngdhfmnmnlfhign/panel.html`
 - Interface languages: English and Italian
 
-## Contents and preservation
-
-- `extension/`: the original runtime code, manifest, icons and third-party notices, plus this English installation guide.
-- `downloads/Anthias_Rooms_Chrome_v3.0.0.zip`: an installable package containing the same runtime files.
-- `downloads/SHA256SUMS.txt`: SHA-256 checksum of the downloadable package.
-
-The public package omits historical handoff notes, laboratory documentation, test fixtures and screenshots. The original supplied archive is preserved separately; this public ZIP has a different checksum because documentation and packaging were cleaned for publication.
-
-The manifest, public key, extension ID, storage format, password handling and application behavior have not been modified.
-
-## Validation
-
-All 147 existing tests passed against the original extension before publication. Every published runtime file was compared byte-for-byte with the supplied archive, and the extension ID was verified from the manifest public key. A new browser or physical-player test was not performed for this archival publication.

@@ -1,4 +1,3 @@
-import {proxyUrl,tabHeaders} from './vps-adapter.js';
 import {t,getLanguage} from './i18n.js';
 import {mediaUrl,mediaKind,assetId} from './api.js';
 const MAX_BYTES=160*1024*1024;
@@ -52,14 +51,14 @@ async function fetchBlob(base,asset) {
     try {
       let blob;
       try {
-        const response=await fetch(mediaUrl(base,asset),{headers:tabHeaders(),credentials:'same-origin',cache:'default',redirect:'error',signal:controller.signal});
+        const response=await fetch(mediaUrl(base,asset),{credentials:'omit',cache:'default',redirect:'error',signal:controller.signal});
         if(response.headers.get('Content-Type')?.includes('text/html')){await response.body?.cancel();throw new Error(t('Player did not return media.'));}
         blob=await boundedResponse(response,MAX_BYTES,controller.signal);
       } catch(error) {
         // The documented JSON content endpoint is a bounded fallback for images only.
         // Never duplicate a multi-GB video in JSON/base64 in the player or browser.
         if(mediaKind(asset)!=='image'||controller.signal.aborted)throw error;
-        const response=await fetch(proxyUrl(base,`/api/v2/assets/${assetId(asset.asset_id)}/content`),{headers:{...tabHeaders(),Accept:'application/json'},credentials:'same-origin',redirect:'error',signal:controller.signal});
+        const response=await fetch(`${base}/api/v2/assets/${assetId(asset.asset_id)}/content`,{headers:{Accept:'application/json'},credentials:'omit',redirect:'error',signal:controller.signal});
         const raw=await boundedResponse(response,32*1024*1024,controller.signal),data=JSON.parse(await raw.text());
         if(data.type!=='file'||typeof data.content!=='string')throw new Error(t('Image content unavailable.'));
         const binary=atob(data.content),parts=[];for(let i=0;i<binary.length;i+=65536)parts.push(Uint8Array.from(binary.slice(i,i+65536),c=>c.charCodeAt(0)));

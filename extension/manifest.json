@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Anthias Rooms",
+  "version": "3.0.0",
+  "version_name": "3.0.0",
+  "description": "Home and Event playlists for Anthias players. Local setup, network discovery and password-protected control.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_title": "Open Anthias Rooms",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "128": "icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'; connect-src 'self' http: https:; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:;"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnlFgY/yherx/NaNOEp9xhkurUisa7uG3k7ETpYcz0AD+OJIYiyK9AJwLDGLioNRqlBksCJcmwxyBceget/m3p/XjI1YBU9sB8TtZNOa3ahM2odzHlYbS0YRkDP1e8hoco/Xik2I3xjfUmGc+2e/ErZHIEDda0kP2LSV6uVLuDIB7hsj49Bv0LhYs582axziSFatG1bizVaf+qh+uJ9Zw36Ksiv8E6/8682oTca1dDwbxAsEz+VT67BRc8I/q9J5w7rHrdL4ckiDuFkL1MiBPp593dxwkfujnOJFPkKMui3FvSiGOX+CSBpGMrUDmB31boONmgAPri4LemZE1wocEAwIDAQAB",
+  "options_ui": {
+    "page": "panel.html",
+    "open_in_tab": true
+  }
+}
