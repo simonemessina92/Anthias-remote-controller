@@ -149,7 +149,7 @@ class Backend(unittest.TestCase):
     def test_04_cross_origin_rejected(self):self.assertEqual(self.call('/ar/remote',headers={'Origin':'https://evil.example'})[0],400)
     def test_05_remote_subnet_private(self):self.assertEqual(self.call('/ar/remote',{'subnet':'8.8.8.0/24'})[0],400)
     def test_06_remote_tunnel_overlap(self):self.assertEqual(self.call('/ar/remote',{'subnet':'10.77.0.0/24'})[0],400)
-    def test_07_remote_size_bound(self):self.assertEqual(self.call('/ar/remote',{'subnet':'10.1.0.0/16'})[0],400)
+    def test_07_remote_size_bound(self):self.assertEqual(self.call('/ar/remote',{'subnet':'10.1.0.1-dev1/16'})[0],400)
     def test_08_profile_requires_login(self):self.assertEqual(self.call('/ar/remote/profile',opener=self.anon)[0],401)
     def test_09_profile_authenticated(self):self.assertIn('[Interface]',self.call('/ar/remote/profile')[1]['profile'])
     def test_10_info_through_backend(self):self.assertIn('anthias_version',self.proxy('/api/v2/info')[1])
@@ -193,7 +193,7 @@ class Backend(unittest.TestCase):
         jar=http.cookiejar.CookieJar();op=build_opener(HTTPCookieProcessor(jar));self.call('/ar/auth/login',{'password':'Password123'},opener=op)
         self.assertTrue(any('HttpOnly' in c._rest and c._rest.get('SameSite')=='Strict' for c in jar))
     def test_27_static_page_and_modules(self):
-        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(b'VPS v1.0.0',html)
+        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(b'VPS v1.0.1-dev1',html)
         self.assertEqual(self.call('/vps-adapter.js')[0],200)
     def test_28_storage_arbitrary_key_rejected(self):self.assertEqual(self.call('/ar/storage/set',{'items':{'auth':{'enabled':False}}})[0],400)
     def test_29_reboot_with_lock(self):

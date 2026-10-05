@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1-dev1
+
+- Open the next development cycle from v1.0.0 GOLDEN.
+- Runtime behavior is unchanged; only development version/channel labels differ.
+
 ## 1.0.0 GOLDEN
 
 - Promote owner-approved DEV4 to the stable main branch.

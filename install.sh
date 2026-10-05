@@ -171,7 +171,7 @@ print('\n  4. PLAYER ACCESS\n     Use Access player in Info or Settings.')
 print('     HTTPS ports 8444–8543 are assigned automatically.')
 print('\n  PROVIDER FIREWALL\n     TCP: 80, 443, 8443, 8444–8543 | UDP: 443')
 print('\n  Local management: bash /opt/anthias-rooms/install.sh')
-print('  GitHub bootstrap: main branch, verified GOLDEN release.')
+print('  GitHub bootstrap: main branch, verified DEV release.')
 print('\n  Setup details saved to: /root/anthias-rooms-setup.txt')
 print('  Initial certificate is self-signed: a browser warning is expected.')
 print('  Configure a trusted certificate before providing public access.')
@@ -213,7 +213,7 @@ remove_all(){
   printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Shared Nginx/Python/WireGuard packages: preserved.\n\n' 
 }
 trap 'echo "Installation/action stopped at line $LINENO. Review the error above before retrying." >&2' ERR
-heading 'ANTHIAS ROOMS VPS v1.0.0 GOLDEN'
+heading 'ANTHIAS ROOMS VPS v1.0.1-dev1 DEV'
 printf '  1. Install\n  2. Remove all\n\n'
 read -r -p 'Select: ' choice
 case "$choice" in 1) install_app;; 2) remove_all;; *) fail 'Choose 1 or 2.';; esac
