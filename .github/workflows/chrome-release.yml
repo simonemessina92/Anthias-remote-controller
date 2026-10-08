@@ -27,7 +27,7 @@ jobs:
           python3 tests/test_native_browser.py
       - name: Build release package
         run: python3 scripts/build_release.py
-      - name: Publish immutable Chrome prerelease
+      - name: Publish versioned Chrome release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,6 +38,12 @@ jobs:
             echo "Existing published package is preserved. Bump the version for a new release."
             exit 0
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --latest=false --title "Anthias Rooms Chrome v${version} DEV" --notes-file RELEASE_NOTES.md
+          channel=GOLDEN
+          flags=(--latest=false)
+          if [[ "$version" == *-dev* ]]; then
+            channel=DEV
+            flags+=(--prerelease)
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --draft "${flags[@]}" --title "Anthias Rooms Chrome v${version} ${channel}" --notes-file RELEASE_NOTES.md
           gh release upload "$tag" dist/*
           gh release edit "$tag" --draft=false

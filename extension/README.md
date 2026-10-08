@@ -1,8 +1,8 @@
 # Anthias Rooms — Local Chrome Extension
 
-**v3.1.0-dev2** adds player screen orientation, responsive layouts, refresh feedback and shared Home/Event assignments with the VPS controller **v1.0.2-dev1**.
+**v3.1.1** adds player screen orientation, responsive layouts, refresh feedback and shared Home/Event assignments with the VPS controller **v1.0.2**.
 
-[Download the new Chrome DEV](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev2)
+[Download the Chrome GOLDEN](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.1)
 
 ## Install or update
 
@@ -11,13 +11,13 @@
 3. For a first installation, enable **Developer mode**, choose **Load unpacked** and select the extracted folder containing `manifest.json`.
 4. Click the extension icon, configure the players and grant network access. The interface supports English and Italian.
 
-The public key and extension ID remain **cfhcncajkcblicinnngdhfmnmnlfhign**. Its page is `chrome-extension://cfhcncajkcblicinnngdhfmnmnlfhign/panel.html`. Chrome's numeric manifest version is 3.1.0.2; the displayed development version is 3.1.0-dev2.
+The public key and extension ID remain **cfhcncajkcblicinnngdhfmnmnlfhign**. Its page is `chrome-extension://cfhcncajkcblicinnngdhfmnmnlfhign/panel.html`. Chrome's numeric manifest version is 3.1.1; the displayed version is 3.1.1 GOLDEN.
 
 Preview, upload and player access remain direct. This extension installs no backend, WireGuard or FFmpeg.
 
 ## Shared Home and Event
 
-Use this extension with **VPS v1.0.2-dev1 or newer compatible versions**. Refresh reads the player rather than relying only on the controller's cache. Both controllers store current assignments, staged order/duration and the published Home/Event snapshot in one disabled web asset on each player. Its name starts with **[HMR] Controller state v1**. It is a data record, has a reserved `.invalid` URL, skips URL checks and is scheduled in the future. It is not a video or an external service. Leave it disabled and do not rename/delete it during normal operation.
+This extension works independently on the local network. A VPS is optional. If both are used, VPS v1.0.2 or newer compatible versions share the same player state. Refresh reads the player rather than relying only on the controller's cache. Both controllers store current assignments, staged order/duration and the published Home/Event snapshot in one disabled web asset on each player. Its name starts with **[HMR] Controller state v1**. It is a data record, has a reserved `.invalid` URL, skips URL checks and is scheduled in the future. It is not a video or an external service. Leave it disabled and do not rename/delete it during normal operation.
 
 Player state contains asset IDs, playlist timing/history and a temporary operation lease. Passwords, VPS addresses, private keys and room names remain local to each controller. There is no daemon to install on the player.
 
@@ -31,7 +31,7 @@ Refresh reads shared assignments automatically; the selected player is checked e
 
 | Branch | Purpose |
 | --- | --- |
-| `main` | VPS v1.0.1 GOLDEN, unchanged by this development release |
+| `main` | VPS v1.0.2 GOLDEN, stable cloud controller |
 | `develop` | VPS development and synchronization testing |
 | `google-extension-plugin` | Local Chrome extension |
 
@@ -39,4 +39,4 @@ The original [v3.0.0 package](https://github.com/simonemessina92/Anthias-remote-
 
 ## Verification
 
-The workflow runs 101 Node tests and loads the real extension in Chromium at five viewport sizes. VPS publication additionally checks both interfaces against the same synthetic player, including two-way synchronization, Home restoration and rejection of a stale editor. Physical-player acceptance is required before GOLDEN promotion.
+The workflow runs 101 Node tests and loads the real extension in Chromium at five viewport sizes. VPS publication additionally checks both interfaces against the same synthetic player, including two-way synchronization, Home restoration and rejection of a stale editor. Two-way synchronization was confirmed on a physical player and approved for GOLDEN release.
