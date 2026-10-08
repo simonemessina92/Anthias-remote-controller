@@ -3,6 +3,25 @@ let language = 'en';
 export function setLanguage(value) { language = value === 'it' ? 'it' : 'en'; }
 export const getLanguage = () => language;
 export const IT = {
+  "Another controller changed this player. Refresh and reopen the editor.":"Un altro controller ha modificato questo player. Aggiorna e riapri l’editor.",
+  "Shared player state is too large.":"Il registro condiviso del player è troppo grande.",
+  "Shared player state is invalid or enabled. Check it in Anthias before making changes.":"Il registro condiviso non è valido o è abilitato. Controllalo in Anthias prima di modificare i contenuti.",
+  "Multiple shared state records found. Resolve the duplicate in Anthias before making changes.":"Trovati più registri condivisi. Risolvi il duplicato in Anthias prima di modificare i contenuti.",
+  "Another controller is changing this player. Wait before refreshing.":"Un altro controller sta modificando questo player. Attendi prima di aggiornare.",
+  "Several legacy files have the same role. Select the intended playlist before publishing.":"Più file precedenti hanno lo stesso ruolo. Seleziona la playlist desiderata prima di pubblicare.",
+
+  "Screen orientation":"Orientamento schermo",
+  "Screen orientation saved.":"Orientamento schermo salvato.",
+  "Screen orientation is not supported by this player.":"Questo player non supporta la lettura dell’orientamento schermo.",
+  "Invalid screen orientation.":"Orientamento schermo non valido.",
+  "The player did not confirm the new orientation. Refresh before retrying.":"Il player non ha confermato il nuovo orientamento. Aggiorna prima di riprovare.",
+  "Landscape (0°)":"Orizzontale (0°)",
+  "Portrait (90°)":"Verticale (90°)",
+  "Landscape, inverted (180°)":"Orizzontale invertito (180°)",
+  "Portrait, inverted (270°)":"Verticale invertito (270°)",
+  "Changing orientation reloads the player display and may briefly interrupt playback.":"Cambiare orientamento ricarica il display del player e può interrompere brevemente la riproduzione.",
+  "Already enrolled":"Già registrato",
+
   "All player assets can be deleted after confirmation, including LIVE and assigned content.": "Puoi eliminare tutti gli asset del player dopo conferma, anche LIVE o assegnati.",
   "Delete after confirmation": "Elimina dopo conferma",
   "Delete LIVE content?": "Eliminare il contenuto LIVE?",

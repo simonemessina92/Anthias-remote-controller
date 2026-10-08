@@ -1849,3 +1849,108 @@ they never cover publishing controls. */
 
 /* Explicit deletion impact stays readable in short and touch viewports. */
 #confirm-text { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* Responsive layout: desktop GOLDEN layout is retained above this breakpoint. */
+@media(max-width:900px){
+ html,body{height:auto;min-height:100%;overflow:auto}.app{height:auto;min-height:100dvh}.app-body{display:block;height:auto;overflow:visible}.sidebar{width:100%;max-height:220px}.sidebar .room-list{max-height:130px}main{overflow:visible}.content-view,.settings-view{height:auto;overflow:visible}.work-area{grid-template-columns:1fr;overflow:visible;flex:none}.room-content{height:auto;overflow:visible}.content-card{min-height:520px}.settings-grid{display:block}.settings-right{overflow:visible}.topbar{flex-wrap:wrap;height:auto;gap:10px;padding:12px}.page-heading{flex-wrap:wrap;gap:12px}.dialog{max-width:96vw}.wizard-row{grid-template-columns:28px 1fr}.gate-shell{width:min(94vw,900px)}
+}
+
+#disable-password{display:none!important}
+
+.remote-profile-actions{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+.remote-profile-actions .btn{flex:1;min-width:200px}
+.remote-profile{margin:12px 0}
+.remote-profile summary{cursor:pointer;color:var(--muted);margin-bottom:8px}
+.remote-profile textarea{width:100%;font-family:monospace;font-size:13px;resize:vertical}
+a.btn[aria-disabled="true"]{opacity:.45;cursor:default;pointer-events:none;text-decoration:none}
+
+.logout-btn{white-space:nowrap;padding:8px 14px}
+
+/* Responsive cloud control: natural page scroll, no compressed desktop columns. */
+.already-enrolled {opacity:.55;background:rgba(128,128,128,.08)}
+#orientation-select {width:100%;margin-top:10px}
+@media(max-width:900px){
+  .app-body,.sidebar,main,.content-view,.settings-view,.settings-grid,.settings-right,.players-settings {min-width:0}
+  .sidebar {max-height:none;height:auto;padding:12px 16px;gap:10px}
+  .sidebar .room-list {display:flex;gap:10px;max-height:none;overflow-x:auto;overflow-y:visible;flex:none;padding:4px 0}
+  .sidebar .room-button {min-width:180px;flex:0 0 auto}
+  .sidebar-footer {padding:8px 0}
+  #content-view>.page-heading,.settings-heading {grid-template-columns:minmax(0,1fr);gap:12px}
+  #content-view>.page-heading>.heading-actions,.settings-heading>.actions {grid-column:1;grid-row:auto;max-width:none;justify-content:flex-start;flex-wrap:wrap}
+  .page-heading>div {min-width:0}
+  .page-heading h1 {overflow-wrap:normal;word-break:normal;font-size:1.65rem}
+  .notice-anchor {grid-column:1;grid-row:auto;min-height:0}
+  .notice-anchor:has(.toast:not([hidden])) {min-height:70px}
+  .settings-grid,.settings-right,.players-settings {height:auto;max-height:none;overflow:visible}
+  #settings-rooms {overflow:visible;max-height:none}
+  .settings-row {display:flex;flex-direction:column;align-items:stretch;gap:12px}
+  .row-actions,.section-head,.actions {flex-wrap:wrap;gap:10px;min-width:0}
+  .row-actions button {min-height:44px}
+  .top-actions {margin-left:auto}
+  .brand small {display:none}
+  .topbar {position:relative;align-items:center}
+  .main-nav {order:3;width:100%;display:flex}
+  .main-nav .nav-btn {flex:1;min-height:44px}
+  .content-card {min-height:0;padding:18px}
+  .preview {min-height:0;max-height:none;aspect-ratio:16/9}
+  .preview img,.preview video {width:100%;height:100%;object-fit:contain}
+  .work-area {grid-auto-rows:auto;gap:16px}
+  .dialog {width:calc(100vw - 24px);max-height:calc(100dvh - 24px);margin:auto}
+  .dialog-heading,.dialog-body,.dialog-footer {padding:16px}
+  .dialog-footer {flex-wrap:wrap}
+  .dialog-footer>.hint {flex-basis:100%}
+  .scan-fields {grid-template-columns:1fr}
+  .discovery-row {grid-template-columns:44px minmax(0,1fr)}
+  .discovery-row>input {grid-column:2;width:100%}
+}
+@media(max-width:480px){
+  .content-view,.settings-view {padding:16px}
+  .topbar {gap:8px;padding:10px 16px}
+  .top-actions {gap:6px}
+  .brand {font-size:1rem}
+  .brand-icon {width:32px;height:32px}
+  .page-heading .actions>.btn {flex:1;white-space:normal}
+  .card-heading h2 {font-size:1.35rem}
+  .settings-box {padding:16px}
+  .field-row {flex-wrap:wrap;gap:10px}
+  .field-row select {width:100%;min-width:0}
+}
+
+.settings-row {flex-wrap:wrap}
+.settings-row>.row-label {flex:1 1 140px}
+.row-actions {flex-wrap:wrap;max-width:100%}
+
+/* Mobile sections must participate in page flow, including the wrapped navigation. */
+@media(max-width:900px) {
+  .app {grid-template-rows:auto minmax(0,1fr)}
+  .topbar {flex-shrink:0}
+  .main-nav {flex:0 0 100%;min-width:0}
+  .settings-row>.row-label {flex:none;align-content:start}
+  #content-view>.page-heading>.heading-actions {flex-direction:row;align-items:center;gap:10px}
+  .notice-anchor:not(:has(.toast:not([hidden]))) {display:none}
+  .editor-tools {padding:12px 16px;flex-wrap:wrap}
+  .editor-list {padding:0 16px}
+  .editor-status {padding:12px 16px;gap:8px}
+  .editor-row {
+    display:grid;
+    grid-template-columns:20px 24px 60px minmax(0,1fr);
+    align-items:center;
+    gap:10px 8px;
+    min-height:0;
+    padding:14px 0;
+  }
+  .editor-row .drag-handle {grid-column:1;grid-row:1}
+  .editor-row .item-index {grid-column:2;grid-row:1;min-width:0}
+  .editor-row .item-thumb {grid-column:3;grid-row:1;width:60px;height:52px;aspect-ratio:auto}
+  .editor-row .item-label {grid-column:4;grid-row:1;min-width:0;gap:4px}
+  .editor-row .item-label small {overflow-wrap:anywhere}
+  .editor-row .timing {grid-column:1/4;grid-row:2;width:auto;min-width:0}
+  .editor-row .item-tools {grid-column:4;grid-row:2;flex-direction:row;justify-content:flex-end;gap:0;min-width:0}
+  .editor-row .item-tools .icon-btn {width:44px;min-width:44px;min-height:44px;padding:8px}
+  .editor-dialog .dialog-heading>div {min-width:0}
+  .editor-dialog .dialog-heading h2 {overflow-wrap:anywhere}
+}
+@media(max-width:480px) {
+  .editor-dialog .dialog-footer {gap:10px}
+  .editor-dialog .dialog-footer>.btn {width:100%;white-space:normal}
+}

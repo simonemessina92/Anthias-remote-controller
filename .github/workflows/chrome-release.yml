@@ -1,0 +1,43 @@
+name: Chrome extension tests and release
+on:
+  push:
+    branches: [google-extension-plugin]
+  pull_request:
+    branches: [google-extension-plugin]
+permissions:
+  contents: read
+jobs:
+  test-and-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source and shared-state behavior
+        run: |
+          for file in extension/*.js; do node --check "$file"; done
+          node --test tests/*.test.mjs
+      - name: Verify actual Chrome extension at five viewport sizes
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          python3 tests/test_native_browser.py
+      - name: Build release package
+        run: python3 scripts/build_release.py
+      - name: Publish immutable Chrome prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("extension/package.json"))["version"])')
+          tag="chrome-v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Existing published package is preserved. Bump the version for a new release."
+            exit 0
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --latest=false --title "Anthias Rooms Chrome v${version} DEV" --notes-file RELEASE_NOTES.md
+          gh release upload "$tag" dist/*
+          gh release edit "$tag" --draft=false
