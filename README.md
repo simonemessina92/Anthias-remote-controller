@@ -1,8 +1,8 @@
 # Anthias Rooms — Local Chrome Extension
 
-**v3.1.0-dev1** adds player screen orientation, responsive layouts, refresh feedback and shared Home/Event assignments with the VPS controller **v1.0.2-dev1**.
+**v3.1.0-dev2** adds player screen orientation, responsive layouts, refresh feedback and shared Home/Event assignments with the VPS controller **v1.0.2-dev1**.
 
-[Download the new Chrome DEV](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev1)
+[Download the new Chrome DEV](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev2)
 
 ## Install or update
 
@@ -11,7 +11,7 @@
 3. For a first installation, enable **Developer mode**, choose **Load unpacked** and select the extracted folder containing `manifest.json`.
 4. Click the extension icon, configure the players and grant network access. The interface supports English and Italian.
 
-The public key and extension ID remain **cfhcncajkcblicinnngdhfmnmnlfhign**. Its page is `chrome-extension://cfhcncajkcblicinnngdhfmnmnlfhign/panel.html`. Chrome's numeric manifest version is 3.1.0; the displayed development version is 3.1.0-dev1.
+The public key and extension ID remain **cfhcncajkcblicinnngdhfmnmnlfhign**. Its page is `chrome-extension://cfhcncajkcblicinnngdhfmnmnlfhign/panel.html`. Chrome's numeric manifest version is 3.1.0.2; the displayed development version is 3.1.0-dev2.
 
 Preview, upload and player access remain direct. This extension installs no backend, WireGuard or FFmpeg.
 
@@ -39,4 +39,4 @@ The original [v3.0.0 package](https://github.com/simonemessina92/Anthias-remote-
 
 ## Verification
 
-The workflow runs 100 Node tests and loads the real extension in Chromium at five viewport sizes. VPS publication additionally checks both interfaces against the same synthetic player, including two-way synchronization, Home restoration and rejection of a stale editor. Physical-player acceptance is required before GOLDEN promotion.
+The workflow runs 101 Node tests and loads the real extension in Chromium at five viewport sizes. VPS publication additionally checks both interfaces against the same synthetic player, including two-way synchronization, Home restoration and rejection of a stale editor. Physical-player acceptance is required before GOLDEN promotion.

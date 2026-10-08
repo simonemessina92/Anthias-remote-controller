@@ -3,6 +3,7 @@ let language = 'en';
 export function setLanguage(value) { language = value === 'it' ? 'it' : 'en'; }
 export const getLanguage = () => language;
 export const IT = {
+  "Recover the interrupted publication in its original controller before making changes.":"Recupera la pubblicazione interrotta nel controller originale prima di effettuare modifiche.",
   "Another controller changed this player. Refresh and reopen the editor.":"Un altro controller ha modificato questo player. Aggiorna e riapri l’editor.",
   "Shared player state is too large.":"Il registro condiviso del player è troppo grande.",
   "Shared player state is invalid or enabled. Check it in Anthias before making changes.":"Il registro condiviso non è valido o è abilitato. Controllalo in Anthias prima di modificare i contenuti.",

@@ -1,6 +1,6 @@
-# Anthias Rooms Chrome v3.1.0-dev1
+# Anthias Rooms Chrome v3.1.0-dev2
 
-[Download ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/chrome-v3.1.0-dev1/Anthias_Rooms_Chrome_v3.1.0-dev1.zip)
+[Download ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/chrome-v3.1.0-dev2/Anthias_Rooms_Chrome_v3.1.0-dev2.zip)
 
 - Share Home/Event assignments with VPS v1.0.2-dev1 through a disabled player-resident state record.
 - Read legacy Home/Event upload labels and refuse ambiguous recovery.

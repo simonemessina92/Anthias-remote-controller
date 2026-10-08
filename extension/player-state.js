@@ -25,6 +25,7 @@ export function decodeState(asset){
   if(itemIds(data.playlists.home).some(id=>itemIds(data.playlists.event).includes(id)))throw new Error('overlap');
   if(data.lastPublished!==null){if(!['home','event'].includes(data.lastPublished?.role))throw new Error('published');data.lastPublished={role:data.lastPublished.role,items:items(data.lastPublished.items)};}
   for(const key of ['homeHistory','eventHistory','uploadedIds','managedEventIds']){if(!Array.isArray(data[key])||data[key].length>1000||unique(data[key]).length!==data[key].length)throw new Error(key);}
+  if(data.recovery!==undefined&&data.recovery!==null&&typeof data.recovery!=='string')throw new Error('recovery');
   if(data.lease!==null&&(!data.lease||typeof data.lease.owner!=='string'||!Number.isFinite(data.lease.until)))throw new Error('lease');
   return data;
  }catch{throw new Error(t('Shared player state is invalid or enabled. Check it in Anthias before making changes.'));}
@@ -37,9 +38,10 @@ const fieldKeys=['playlists','lastPublished','homeHistory','eventHistory','uploa
 function portable(room){return Object.fromEntries(fieldKeys.map(k=>[k,structuredClone(room[k])]));}
 const validItems=(list,assets)=>list.filter(x=>assets.some(a=>a.asset_id===x.id&&isLocalMedia(a)));
 const liveItems=assets=>ordered(assets.filter(a=>a.is_enabled&&isLocalMedia(a))).map(a=>({id:a.asset_id,duration:mediaKind(a)==='image'?a.duration:null}));
-export function reconcilePlayer(room,assets){
+export function reconcilePlayer(room,assets,{recoveryToken}={}){
  const before=JSON.stringify({...portable(room),sharedRevision:room.sharedRevision}),record=readState(assets);let warning='';
  if(record){
+  if(record.data.recovery)return {changed:false,busy:record.data.recovery!==recoveryToken,warning:t('Recover the interrupted publication in its original controller before making changes.')};
   if(record.data.lease&&record.data.lease.until>Date.now())return {changed:false,busy:true,warning:t('Another controller is changing this player. Wait before refreshing.')};
   const changedRevision=room.sharedRevision!==record.data.revision;
   Object.assign(room,portable(record.data));room.sharedRevision=record.data.revision;
@@ -77,14 +79,15 @@ export function reconcilePlayer(room,assets){
 /* Anthias has no compare-and-swap API. This cooperative lease arbitrates updated
    controllers and checks ownership before every write; native/older clients do
    not participate. Readback and existing publication verification remain required. */
-export async function beginPlayerSession(api,room,{delay=ms=>new Promise(r=>setTimeout(r,ms)),now=Date.now,owner=crypto.randomUUID()}={}){
+export async function beginPlayerSession(api,room,{delay=ms=>new Promise(r=>setTimeout(r,ms)),now=Date.now,owner=crypto.randomUUID(),recoveryToken}={}){
  const raw={};for(const key of ['assets','get','patch','create','remove','order','patchSettings','show','upload'])if(typeof api[key]==='function')raw[key]=api[key].bind(api);
  let record=readState(await raw.assets());
+ if(record?.data.recovery&&record.data.recovery!==recoveryToken)throw new Error(t('Recover the interrupted publication in its original controller before making changes.'));
  if(record?.data.lease&&record.data.lease.until>now())throw new Error(t('Another controller is changing this player. Wait before refreshing.'));
- const fresh=await raw.assets();const reconciled=reconcilePlayer(room,fresh);if(reconciled.busy)throw conflict();
+ const fresh=await raw.assets();const reconciled=reconcilePlayer(room,fresh,{recoveryToken});if(reconciled.busy)throw conflict();
  record=readState(fresh);const baseRevision=record?.data.revision||'';
  if(!record){
-  const data={schema:1,revision:crypto.randomUUID(),...portable(room),lease:{owner,until:now()+LEASE_MS}};
+  const data={schema:1,revision:crypto.randomUUID(),...portable(room),recovery:null,lease:{owner,until:now()+LEASE_MS}};
   await raw.create({name:encodeState(data),uri:STATE_URI,mimetype:'webpage',duration:0,is_enabled:false,is_processing:false,skip_asset_check:true,start_date:'2099-01-01T00:00:00+00:00',end_date:'2100-01-01T00:00:00+00:00'});
   record=readState(await raw.assets());if(!record||record.data.lease?.owner!==owner)throw conflict();
  }else{
@@ -103,12 +106,13 @@ export async function beginPlayerSession(api,room,{delay=ms=>new Promise(r=>setT
  const timer=setInterval(()=>{if(!stopped)void serial(async()=>{await check();record.data.lease.until=now()+LEASE_MS;await raw.patch(record.asset.asset_id,{name:encodeState(record.data),is_enabled:false});}).catch(()=>{lost=true;});},10000);
  return {
   changed:reconciled.changed,warning:reconciled.warning,baseRevision,
+  markRecovery:token=>serial(async()=>{await check();record.data.recovery=token;await raw.patch(record.asset.asset_id,{name:encodeState(record.data),is_enabled:false});await check();}),
   commit:()=>serial(async()=>{
-   await check();const desired=portable(room);if(JSON.stringify(desired)===JSON.stringify(portable(record.data)))return;
+   if(stopped)return;await check();const desired=portable(room);if(JSON.stringify(desired)===JSON.stringify(portable(record.data)))return;
    const next={...record.data,...desired,revision:crypto.randomUUID(),lease:{owner,until:now()+LEASE_MS}};
    await raw.patch(record.asset.asset_id,{name:encodeState(next),is_enabled:false});record.data=next;await check();room.sharedRevision=next.revision;
   }),
-  close:async()=>{stopped=true;clearInterval(timer);await queue;
+  close:async()=>{if(stopped)return;stopped=true;clearInterval(timer);await queue;
    try{await check();await raw.patch(record.asset.asset_id,{name:encodeState({...record.data,lease:null}),is_enabled:false});}finally{for(const key of ['patch','create','remove','order','patchSettings','show','upload'])if(raw[key])api[key]=raw[key];}
   }
  };

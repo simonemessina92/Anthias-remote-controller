@@ -72,3 +72,9 @@ test('native order and image duration changes are observed across controllers',a
  m.state.list.find(a=>a.asset_id==='h1').play_order=1;m.state.list.find(a=>a.asset_id==='h2').play_order=0;m.state.list.find(a=>a.asset_id==='h2').duration=31;
  const fresh=newRoom();reconcilePlayer(fresh,m.state.list);assert.deepEqual(fresh.playlists.home,[{id:'h2',duration:31},{id:'h1',duration:15}]);
 });
+
+test('interrupted publication blocks other controllers until origin recovery',async()=>{
+ const m=mock([media('h')]),r=newRoom(),session=await begin(m.make(),r);await session.markRecovery('journal-token');await session.close();
+ await assert.rejects(begin(m.make(),newRoom()),/Recover/);
+ const recovery=await begin(m.make(),r,{recoveryToken:'journal-token'});await recovery.markRecovery(null);await recovery.close();const other=await begin(m.make(),newRoom());await other.close();
+});

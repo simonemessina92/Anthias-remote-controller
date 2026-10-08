@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Anthias Rooms",
-  "version": "3.1.0",
-  "version_name": "3.1.0-dev1",
+  "version": "3.1.0.2",
+  "version_name": "3.1.0-dev2",
   "description": "Home and Event playlists for Anthias players. Local setup, network discovery and password-protected control.",
   "minimum_chrome_version": "120",
   "permissions": [
