@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Anthias Rooms VPS v1.0.1-dev4 DEV. Standard-library backend; no Chrome or runtime pip dependencies."""
+"""Anthias Rooms VPS v1.0.1-dev5 DEV. Standard-library backend; no Chrome or runtime pip dependencies."""
 import concurrent.futures, uuid, shutil
 import base64, hashlib, hmac, http.client, ipaddress, json, mimetypes, os, re, secrets, sqlite3, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -243,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.same_origin()
             p=urlsplit(self.path)
-            if p.path=='/health': return self.send({'ok':True,'version':'1.0.1-dev4'})
+            if p.path=='/health': return self.send({'ok':True,'version':'1.0.1-dev5'})
             if p.path.startswith('/ar/'): return self.api(p)
             if self.command!='GET': return self.send({'error':'Method not allowed'},405)
             name='panel.html' if p.path=='/' else unquote(p.path).lstrip('/')
@@ -484,5 +484,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__=='__main__':
     addr=os.environ.get('AR_BIND','127.0.0.1');port=int(os.environ.get('AR_PORT','8787'))
-    print(f'Anthias Rooms VPS 1.0.1-dev4 listening on {addr}:{port}',flush=True)
+    print(f'Anthias Rooms VPS 1.0.1-dev5 listening on {addr}:{port}',flush=True)
     ThreadingHTTPServer((addr,port),Handler).serve_forever()

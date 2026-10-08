@@ -17,6 +17,17 @@ class Packages(unittest.TestCase):
    with gzip.open(root/'history.log.1.gz','wt') as f:f.write(history)
    with patch.object(ownership,'packages',return_value={'ffmpeg:amd64','libavcodec61:amd64','unrelated:amd64'}):data=ownership.recover(receipt,root,strict=True)
    self.assertEqual(data['packages'],['ffmpeg:amd64','libavcodec61:amd64'])
+ def test_repairs_dev4_receipt_for_all_architecture_packages(self):
+  names={'adwaita-icon-theme','alsa-ucm-conf','gsettings-desktop-schemas','libgtk-3-common'}
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);receipt=root/'receipt';ownership.save(receipt,{'version':1,'packages':['ffmpeg:amd64'],'sources':['apt-history','snapshot']})
+   (root/'history.log').write_text('Commandline: apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2 ffmpeg\nInstall: ffmpeg:amd64 (1), '+', '.join(x+':amd64 (1, automatic)' for x in sorted(names))+'\n')
+   current={'ffmpeg:amd64'}|{x+':all' for x in names}|{'pre-existing:all'}
+   with patch.object(ownership,'packages',return_value=current):data=ownership.recover(receipt,root,strict=True)
+   self.assertEqual(set(data['packages']),current-{'pre-existing:all'})
+ def test_foreign_architecture_is_not_mistaken_for_native_package(self):
+  self.assertEqual(ownership.canonical({'library:i386'},{'library:amd64'}),set())
+  self.assertEqual(ownership.canonical({'icons:amd64'},{'icons:all'}),{'icons:all'})
  def test_missing_legacy_history_stops_without_creating_receipt(self):
   with tempfile.TemporaryDirectory() as d:
    receipt=Path(d)/'receipt'

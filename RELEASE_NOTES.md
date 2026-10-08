@@ -1,12 +1,10 @@
-# Anthias Rooms VPS v1.0.1-dev4
+# Anthias Rooms VPS v1.0.1-dev5
 
-- Remove all restarts shared Nginx after deleting the Anthias site, closing old worker connections to router/player GUI ports. Other Nginx sites briefly reconnect. Nginx is subsequently purged if it was installed by this project; pre-existing packages are preserved.
-- Remove all purges all packages added by the bootstrap/installer, including transitive dependencies, package configuration and cached archives. Ownership is recorded before/after installation; older versions recover it from matching APT history. Missing legacy history or unrelated dependent packages stop removal before deleting the application.
-- The DEV bootstrap downloads the selected release installer even for an existing installation, so old removal code is not reused.
-- Port checks use address reuse, accepting closed TCP connections while still rejecting active listeners. Errors include the actual operating-system cause.
-- Real Nginx regression executes Remove all with an open player-port connection and verifies closure, cache removal and immediate port reuse.
+- Repair legacy package ownership when APT history records architecture-independent packages using the host architecture. Existing DEV4 receipts are repaired automatically, including the missing icon, ALSA, desktop schema and GTK common packages. Foreign architectures remain distinct.
+- Limit APT purge to installer-owned packages; unrelated automatic cleanup is disabled. Baseline packages remain protected.
+- Release publication requires real install → purge → reinstall → purge cycles on Debian 12, Debian 13 and Ubuntu 24.04, for both fresh installs and migration from the legacy installer with a broken DEV4 receipt. Tests leave a player GUI connection open during removal and compare the package baseline after each purge.
 
-Mobile layout fixes and all features from dev3 remain available. No new runtime dependencies.
+Previous mobile layout, orientation, video preview and removal fixes remain available. No new runtime dependencies.
 
 Install on a test VPS as root:
 

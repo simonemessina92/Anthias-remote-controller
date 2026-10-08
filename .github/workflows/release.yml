@@ -10,7 +10,20 @@ concurrency:
   group: anthias-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  install-purge-cycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['debian:trixie', 'debian:bookworm', 'ubuntu:24.04']
+        kind: [fresh, legacy]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install, purge, reinstall and purge with real services
+        run: bash tests/run_install_cycle.sh '${{ matrix.image }}' '${{ matrix.kind }}'
   test-and-release:
+    needs: install-purge-cycle
     runs-on: ubuntu-24.04
     permissions:
       contents: write

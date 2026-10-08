@@ -4,7 +4,6 @@ umask 077
 APP=/opt/anthias-rooms
 ETC=/etc/anthias-rooms
 DATA=/var/lib/anthias-rooms
-PACKAGES=/var/lib/anthias-rooms-packages.json
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 heading(){ printf '\n============================================================\n  %s\n============================================================\n' "$1"; }
 step(){ printf '\n  [%s] %s\n' "$1" "$2"; }
@@ -24,15 +23,8 @@ install_app(){
   tunnel=${tunnel:-10.77.0.0/24}
   heading "INSTALL ANTHIAS ROOMS VPS"
   step 1 "Install dependencies"
-  python3 "$SCRIPT_DIR/package-ownership.py" recover "$PACKAGES"
-  package_snapshot=$(mktemp /tmp/anthias-packages.XXXXXXXX)
-  python3 "$SCRIPT_DIR/package-ownership.py" snapshot "$package_snapshot"
   apt-get update
-  apt_status=0
-  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2 ffmpeg || apt_status=$?
-  python3 "$SCRIPT_DIR/package-ownership.py" record "$package_snapshot" "$PACKAGES"
-  rm -f "$package_snapshot"
-  [[ "$apt_status" == 0 ]] || fail 'Dependency installation failed; package receipt retained for Remove all.'
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2 ffmpeg
   python3 - "$endpoint" "$tunnel" <<'PY'
 import ipaddress,re,sys
 host=sys.argv[1]
@@ -49,9 +41,8 @@ PY
 import socket
 for port in range(8444,8544):
  with socket.socket() as s:
-  s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
   try:s.bind(('0.0.0.0',port))
-  except OSError as e:raise SystemExit(f'ERROR: Cannot reserve TCP {port}: {e}')
+  except OSError:raise SystemExit(f'ERROR: TCP {port} is occupied; cannot reserve player GUI ports.')
 PYPORTS
   step 2 "Create service and permissions"
   useradd --system --home-dir "$DATA" --shell /usr/sbin/nologin anthias-rooms
@@ -60,7 +51,7 @@ PYPORTS
   touch "$ETC/owned-by-installer"
   install -d -m 700 -o anthias-rooms -g anthias-rooms "$DATA"
   install -d -m 700 /etc/wireguard
-  cp "$SCRIPT_DIR/server.py" "$SCRIPT_DIR/wg-helper.py" "$SCRIPT_DIR/nginx-config.py" "$SCRIPT_DIR/install.sh" "$SCRIPT_DIR/package-ownership.py" "$APP/"
+  cp "$SCRIPT_DIR/server.py" "$SCRIPT_DIR/wg-helper.py" "$SCRIPT_DIR/nginx-config.py" "$SCRIPT_DIR/install.sh" "$APP/"
   cp -r "$SCRIPT_DIR/web" "$APP/web"
   chown -R root:anthias-rooms "$APP"
   find "$APP" -type d -exec chmod 750 {} +
@@ -188,14 +179,8 @@ print('============================================================\n')
 PYRESULT
 }
 remove_all(){
-  [[ -f "$ETC/owned-by-installer" || -f "$PACKAGES" ]] || fail 'No owned Anthias Rooms installation found.'
-  if [[ -f "$ETC/owned-by-installer" ]]; then
-    python3 "$SCRIPT_DIR/package-ownership.py" recover "$PACKAGES" strict
-  else
-    python3 "$SCRIPT_DIR/package-ownership.py" recover "$PACKAGES"
-  fi
-  python3 "$SCRIPT_DIR/package-ownership.py" plan "$PACKAGES"
-  echo 'This purges Anthias Rooms VPS, its data, keys, tunnel and all packages added by its installer. Baseline system packages and player files are preserved.'
+  [[ -f "$ETC/owned-by-installer" ]] || fail 'No owned Anthias Rooms installation found.'
+  echo 'This removes Anthias Rooms VPS, its database, sessions, keys and dedicated tunnel. Player files are not touched.'
   read -r -p 'Type REMOVE ALL (both words) to confirm, or Enter to cancel: ' answer
   [[ "$answer" == 'REMOVE ALL' ]] || { echo 'Cancelled.'; return; }
   heading "REMOVE ANTHIAS ROOMS VPS"
@@ -207,17 +192,12 @@ remove_all(){
   step 2 "Remove router and player HTTPS access"
   rm -f /etc/nginx/sites-enabled/anthias-rooms /etc/nginx/sites-available/anthias-rooms
   if [[ -f "$ETC/restore-nginx-default" && ! -e /etc/nginx/sites-enabled/default && -f /etc/nginx/sites-available/default ]]; then ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default; fi
-  if command -v nginx >/dev/null; then nginx -t; fi
-  if systemctl is-active --quiet nginx; then
-    echo 'Restarting shared Nginx to close existing router/player connections. Other Nginx sites briefly reconnect.'
-    systemctl restart nginx
-  fi
+  nginx -t
+  if systemctl is-active --quiet nginx; then systemctl reload nginx; fi
   systemctl reset-failed anthias-rooms.service wg-quick@arwg0.service anthias-rooms-firewall.service 2>/dev/null || true
   if [[ -f "$ETC/ufw-owned-rules" ]] && command -v ufw >/dev/null; then
     while IFS= read -r rule; do ufw --force delete allow "$rule" comment AnthiasRooms; done < "$ETC/ufw-owned-rules"
   fi
-  purge_helper=$(mktemp /tmp/anthias-purge.XXXXXXXX.py)
-  cp "$SCRIPT_DIR/package-ownership.py" "$purge_helper"
   step 3 "Remove application, database and keys"
   rm -f /root/anthias-rooms-setup.txt
   rm -f /etc/systemd/system/anthias-rooms.service /etc/systemd/system/anthias-rooms-firewall.service /etc/sudoers.d/anthias-rooms /etc/wireguard/arwg0.conf
@@ -225,22 +205,15 @@ remove_all(){
   if id anthias-rooms >/dev/null 2>&1; then userdel anthias-rooms; fi
   systemctl daemon-reload
   step 4 "Verify removed components"
-  for path in "$APP" "$ETC" "$DATA" /etc/wireguard/arwg0.conf /etc/nginx/sites-enabled/anthias-rooms /etc/nginx/sites-available/anthias-rooms /root/anthias-rooms-setup.txt /etc/sudoers.d/anthias-rooms /etc/systemd/system/anthias-rooms.service /etc/systemd/system/anthias-rooms-firewall.service; do
+  for path in "$APP" "$ETC" "$DATA" /etc/wireguard/arwg0.conf /etc/nginx/sites-enabled/anthias-rooms /etc/sudoers.d/anthias-rooms /etc/systemd/system/anthias-rooms.service /etc/systemd/system/anthias-rooms-firewall.service; do
     [[ ! -e "$path" && ! -L "$path" ]] || fail "Removal incomplete: $path remains."
   done
   [[ -z $(ip -o link show arwg0 2>/dev/null) ]] || fail 'Removal incomplete: arwg0 still exists.'
-  if id anthias-rooms >/dev/null 2>&1; then fail 'Removal incomplete: service user still exists.'; fi
-  if nft list table inet anthias_rooms >/dev/null 2>&1; then fail 'Removal incomplete: firewall table still exists.'; fi
-  python3 "$purge_helper" ports "$PACKAGES"
-  step 5 "Purge installer-owned packages and their configuration"
-  python3 "$purge_helper" purge "$PACKAGES"
-  rm -f "$purge_helper"
-  [[ ! -e "$PACKAGES" ]] || fail 'Removal incomplete: package receipt remains.'
   heading "REMOVAL COMPLETE"
-  printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Installer-owned packages: purged. Pre-existing system packages: preserved.\n\n'
+  printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Shared Nginx/Python/WireGuard packages: preserved.\n\n' 
 }
 trap 'echo "Installation/action stopped at line $LINENO. Review the error above before retrying." >&2' ERR
-heading 'ANTHIAS ROOMS VPS v1.0.1-dev5 DEV'
+heading 'ANTHIAS ROOMS VPS v1.0.1-dev3 DEV'
 printf '  1. Install\n  2. Remove all\n\n'
 read -r -p 'Select: ' choice
 case "$choice" in 1) install_app;; 2) remove_all;; *) fail 'Choose 1 or 2.';; esac

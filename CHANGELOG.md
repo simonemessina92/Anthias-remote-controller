@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1-dev5
+
+- Normalize architecture-independent package identities during legacy recovery and repair existing DEV4 receipts.
+- Disable unrelated APT automatic removal during purge.
+- Gate publication on complete lifecycle tests with real APT and system services across Debian 12/13 and Ubuntu 24.04.
+
 ## v1.0.1-dev4
 
 - Close old Nginx worker connections during Remove all, allow immediate TCP address reuse and report actual port errors.

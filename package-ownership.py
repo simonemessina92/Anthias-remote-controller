@@ -34,11 +34,28 @@ def history_packages(folder):
             if installs:owned.update(re.findall(r'(?:^|, )([a-z0-9][a-z0-9+.-]*:[a-z0-9-]+) \(',installs[1]))
     return matched,owned
 
+def canonical(names,current):
+    # APT history can use the host architecture for Architecture: all packages.
+    # Keep foreign-architecture identities distinct; only :all is an alias.
+    result=set()
+    for name in names:
+        if name in current:result.add(name)
+        else:
+            all_name=name.split(':',1)[0]+':all'
+            if all_name in current:result.add(all_name)
+    return result
+
 def recover(path,folder,strict=False):
-    if path.exists():return load(path)
-    matched,owned=history_packages(folder)
-    if strict and not matched:raise ValueError('Old installation has no package receipt and matching APT history is unavailable. Cannot identify its packages safely; nothing was removed.')
-    data={'version':1,'packages':sorted(owned&packages()),'sources':['apt-history'] if matched else ['baseline']}
+    existing=path.exists();data=load(path);current=packages()
+    # DEV4 legacy receipts omitted Architecture: all packages. Repair existing
+    # history-derived receipts as well as recovering installations without one.
+    use_history=not existing or 'apt-history' in data.get('sources',[])
+    if use_history:
+        matched,owned=history_packages(folder)
+        if strict and not existing and not matched:raise ValueError('Old installation has no package receipt and matching APT history is unavailable. Cannot identify its packages safely; nothing was removed.')
+        known=canonical(data['packages'],current)|canonical(owned,current)
+        data={'version':1,'packages':sorted(known),'sources':sorted(set(data.get('sources',[]))|({'apt-history'} if matched else {'baseline'}))}
+    else:data['packages']=sorted(canonical(data['packages'],current))
     save(path,data);return data
 
 def record(snapshot,path):
@@ -49,7 +66,7 @@ def record(snapshot,path):
 def plan(path):
     data=load(path);owned=sorted(set(data['packages'])&packages())
     if not owned:return []
-    result=subprocess.run(['apt-get','-s','purge',*owned],check=True,capture_output=True,text=True,env={**os.environ,'LC_ALL':'C'})
+    result=subprocess.run(['apt-get','-o','APT::Get::AutomaticRemove=false','-s','purge',*owned],check=True,capture_output=True,text=True,env={**os.environ,'LC_ALL':'C'})
     removed=set(re.findall(r'^(?:Remv|Purg) (\S+)',result.stdout,re.M));allowed={x.split(':')[0] for x in owned}
     extra={x for x in removed if x.split(':')[0] not in allowed}
     if extra:raise ValueError('Package purge would also remove packages outside this installation: '+', '.join(sorted(extra))+'. Nothing was removed.')
@@ -64,7 +81,7 @@ def probe_ports():
 
 def purge(path):
     owned=plan(path)
-    if owned:subprocess.run(['apt-get','purge','-y',*owned],check=True,env={**os.environ,'DEBIAN_FRONTEND':'noninteractive'})
+    if owned:subprocess.run(['apt-get','-o','APT::Get::AutomaticRemove=false','purge','-y',*owned],check=True,env={**os.environ,'DEBIAN_FRONTEND':'noninteractive'})
     remaining=set(load(path)['packages'])&packages()
     if remaining:raise ValueError('Package purge incomplete: '+', '.join(sorted(remaining)))
     names={x.split(':')[0] for x in load(path)['packages']}
