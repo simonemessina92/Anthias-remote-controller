@@ -2,19 +2,20 @@
 
 ## Automated coverage
 
-The release workflow runs **161 tests**, plus browser regression checks at five viewport sizes:
+The release workflow runs **169 tests**, plus browser regression checks at five viewport sizes:
 
 | Suite | Tests | Coverage |
 |---|---:|---|
 | Node | 96 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
 | HTTP backend | 45 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
 | WireGuard helper | 11 | LAN routes, split tunnel, keepalive, persistent keys, permissions, rejected subnets, missing handshake and unchanged configuration |
+| Package ownership/purge | 7 | Snapshot ownership, compressed legacy history, unrelated dependency protection, failed purge retries and real disposable DEB/conffile purge |
 | Installer | 2 | Permissions under umask 077 and complete removal in an isolated temporary tree using simulated system commands |
-| Nginx/TLS integration | 7 | Native GUI, absolute paths, cookie filtering, redirects, uploads, WebSocket upgrade and revoked ports |
+| Nginx/TLS integration | 8 | Native GUI, absolute paths, cookie filtering, redirects, uploads, WebSocket upgrade and revoked ports |
 
 Syntax checks cover Bash, Python and frontend JavaScript. Nginx integration tests run with real Nginx/TLS in GitHub Actions; local environments without Nginx skip them. Test player payloads are synthetic. Backend tests use `AR_TEST=1` for loopback mock players and simulated WireGuard; production installation does not set it. Automated tests do not establish real HDMI playback or VPN performance.
 
-The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. DEV3 also checks navigation/sidebar separation, compact player labels and non-overlapping playlist image/video controls with long local filenames. Local execution passed 154 tests; the seven Nginx tests and browser checks require the release CI environment.
+The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. DEV3 also checks navigation/sidebar separation, compact player labels and non-overlapping playlist image/video controls with long local filenames. Local execution passed 154 tests; the eight Nginx tests and browser checks require the release CI environment.
 
 ## Hardware acceptance
 
@@ -36,3 +37,5 @@ python3 -m py_compile server.py wg-helper.py nginx-config.py
 ```
 
 Check the GitHub Actions run for the release commit before using its assets. Further acceptance should cover multiple real players, mobile layout, long uploads/video range requests, local emergency control and the chosen trusted certificate/backup procedures.
+
+DEV4 runs Remove all against a real disposable Nginx instance with an unfinished HTTP connection on player port 8444. It checks connection closure, thumbnail/database removal, continued shared-site operation and immediate address reuse. Pre-existing Nginx is preserved; restarting shared Nginx briefly interrupts its connections. Installer-added Nginx and other dependencies are purged. The package integration uses two disposable DEBs to verify removal of a package, its dependency and configuration files without touching baseline packages.

@@ -1,12 +1,12 @@
-# Anthias Rooms VPS v1.0.1-dev3
+# Anthias Rooms VPS v1.0.1-dev4
 
-- Mobile navigation reserves its full height above the player list.
-- Player settings use compact rows without excess vertical space.
-- Playlist editor separates thumbnails, filenames, timing and reorder/delete controls on phones and tablets. Footer buttons fit narrow screens.
-- Content actions wrap together; empty notification areas no longer reserve a blank row.
-- Browser checks now detect overlapping sections and playlist controls, including long filenames and local uploads.
+- Remove all restarts shared Nginx after deleting the Anthias site, closing old worker connections to router/player GUI ports. Other Nginx sites briefly reconnect. Nginx is subsequently purged if it was installed by this project; pre-existing packages are preserved.
+- Remove all purges all packages added by the bootstrap/installer, including transitive dependencies, package configuration and cached archives. Ownership is recorded before/after installation; older versions recover it from matching APT history. Missing legacy history or unrelated dependent packages stop removal before deleting the application.
+- The DEV bootstrap downloads the selected release installer even for an existing installation, so old removal code is not reused.
+- Port checks use address reuse, accepting closed TCP connections while still rejecting active listeners. Errors include the actual operating-system cause.
+- Real Nginx regression executes Remove all with an open player-port connection and verifies closure, cache removal and immediate port reuse.
 
-Orientation, server-generated thumbnails and refresh behavior from dev2 remain available. No additional runtime dependencies.
+Mobile layout fixes and all features from dev3 remain available. No new runtime dependencies.
 
 Install on a test VPS as root:
 

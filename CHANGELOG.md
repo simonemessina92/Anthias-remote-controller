@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1-dev4
+
+- Close old Nginx worker connections during Remove all, allow immediate TCP address reuse and report actual port errors.
+- Purge all installer-added packages, including dependencies; recover legacy ownership from APT history and use the selected release remover for older installations.
+- Test real Nginx removal with an open player connection and cached thumbnails.
+
 ## v1.0.1-dev3
 
 - Fix mobile navigation overlapping the player sidebar, oversized player settings rows and playlist editor labels colliding with timing controls.

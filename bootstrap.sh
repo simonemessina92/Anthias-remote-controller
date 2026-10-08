@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-VERSION=1.0.1-dev3
+VERSION=1.0.1-dev4
 REPO=simonemessina92/Anthias-remote-controller
 [[ $EUID == 0 ]] || { echo 'Run this command as root on the VPS.' >&2; exit 1; }
-# Existing managed installs can be removed offline using this same local menu.
-if [[ -f /etc/anthias-rooms/owned-by-installer && -f /opt/anthias-rooms/install.sh ]]; then
-  bash /opt/anthias-rooms/install.sh
-  exit
-fi
 command -v curl >/dev/null || { echo 'Install curl before running the bootstrap.' >&2; exit 1; }
+work=$(mktemp -d /tmp/anthias-remote.XXXXXXXX)
+cleanup(){ rm -rf -- "$work"; }
+trap cleanup EXIT
+# Capture the baseline before bootstrap dependencies, including Python itself.
+dpkg-query -W -f='${Package}:${Architecture}\n' > "$work/packages-before"
 if ! command -v python3 >/dev/null; then
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y python3
 fi
-work=$(mktemp -d /tmp/anthias-remote.XXXXXXXX)
-cleanup(){ rm -rf -- "$work"; }
-trap cleanup EXIT
 asset="Anthias_Rooms_VPS_v${VERSION}.zip"
 base="https://github.com/${REPO}/releases/download/v${VERSION}"
 printf '\n  Anthias Remote Controller — %s\n  Download package and verify SHA-256…\n\n' "$VERSION"
@@ -38,5 +35,14 @@ with zipfile.ZipFile(work/asset) as archive:
  archive.extractall(work)
 if not (work/root/'install.sh').is_file():raise SystemExit('ERROR: installer missing from package.')
 PY
+helper="$work/${asset%.zip}/package-ownership.py"
+receipt=/var/lib/anthias-rooms-packages.json
+if [[ -f /etc/anthias-rooms/owned-by-installer ]]; then
+  python3 "$helper" recover "$receipt" strict
+else
+  python3 "$helper" recover "$receipt"
+fi
+python3 "$helper" record "$work/packages-before" "$receipt"
+# Always use the selected release's installer, including removal of older versions.
 bash "$work/${asset%.zip}/install.sh"
 # EXIT also removes the downloaded ZIP and extracted sources after Install/Remove.

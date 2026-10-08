@@ -29,6 +29,7 @@ jobs:
           node --test tests/*.test.mjs
           python3 tests/test_backend.py
           python3 tests/test_wireguard.py
+          sudo env AR_PACKAGE_INTEGRATION=1 python3 tests/test_packages.py
           sudo python3 tests/test_installer.py
           python3 tests/test_nginx.py
       - name: Verify mobile and desktop layouts

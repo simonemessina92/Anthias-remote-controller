@@ -78,4 +78,55 @@ class Nginx(unittest.TestCase):
  def test_07_removal_revokes_existing_port(self):
   self.request(self.main,'/ar/locks',{'name':'hmr-config-v3','action':'acquire'});self.request(self.main,'/ar/storage/set',{'items':{'hmrConfig':{'schema':4,'rooms':[]}}});self.request(self.main,'/ar/locks',{'name':'hmr-config-v3','action':'release'})
   self.assertEqual(self.request(self.gui,'/')[0],403)
+@unittest.skipUnless(shutil.which('nginx'),'Nginx unavailable locally; executed by GitHub Actions')
+class Removal(unittest.TestCase):
+ def test_remove_all_closes_open_connection_removes_cache_and_allows_reinstall(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);shared=port();real_nginx=shutil.which('nginx');bin=root/'bin';bin.mkdir()
+   for name in ['opt/anthias-rooms','etc/anthias-rooms','var/lib/anthias-rooms/thumbnails','etc/nginx/sites-enabled','etc/nginx/sites-available']:(root/name).mkdir(parents=True)
+   (root/'etc/anthias-rooms/owned-by-installer').touch()
+   (root/'var/lib/anthias-rooms/thumbnails/cached.jpg').write_bytes(b'test cache')
+   (root/'var/lib/anthias-rooms-packages.json').write_text('{"version":1,"packages":[]}')
+   site=root/'etc/nginx/sites-available/anthias-rooms';site.write_text('server {listen 8444; return 200 "player";}')
+   (root/'etc/nginx/sites-enabled/anthias-rooms').symlink_to(site)
+   conf=root/'nginx.conf';conf.write_text(f'worker_processes 1; pid {root}/nginx.pid; error_log {root}/nginx.log; events {{worker_connections 64;}} http {{access_log off; server {{listen 127.0.0.1:{shared}; return 200 "shared";}} include {root}/etc/nginx/sites-enabled/*;}}')
+   wrapper=bin/'nginx';wrapper.write_text('#!/bin/sh\nexec '+real_nginx+' -p "$TEST_NGINX_ROOT/" -c "$TEST_NGINX_ROOT/nginx.conf" "$@"\n');wrapper.chmod(0o755)
+   control=bin/'systemctl';control.write_text("""#!/bin/bash
+if [[ "$1" == restart && "$2" == nginx ]]; then
+ nginx -s stop
+ for attempt in {1..100}; do
+  [[ -z $(ss -H -ltn "sport = :$TEST_SHARED_PORT") ]] && break
+  sleep .05
+ done
+ nginx
+fi
+exit 0
+""");control.chmod(0o755)
+   for name in ['nft','id','ip']:
+    f=bin/name;f.write_text('#!/bin/sh\nexit 1\n');f.chmod(0o755)
+   env={**os.environ,'PATH':str(bin)+':'+os.environ['PATH'],'TEST_NGINX_ROOT':d,'TEST_SHARED_PORT':str(shared)}
+   subprocess.run([str(wrapper)],env=env,check=True)
+   connection=None
+   try:
+    for _ in range(100):
+     try:connection=socket.create_connection(('127.0.0.1',8444),timeout=2);break
+     except OSError:time.sleep(.05)
+    self.assertIsNotNone(connection)
+    connection.sendall(b'GET / HTTP/1.1\r\nHost: localhost\r\n')
+    source=(ROOT/'install.sh').read_text();check=source.split("<<'PYPORTS'\n",1)[1].split('\nPYPORTS',1)[0]
+    occupied=subprocess.run([sys.executable,'-c',check],capture_output=True,text=True);self.assertNotEqual(occupied.returncode,0);self.assertIn('8444',occupied.stderr)
+    block=source[source.index('remove_all(){'):source.index('\ntrap ')]
+    for prefix in ['/etc/','/root/']:block=block.replace(prefix,str(root)+prefix)
+    script='set -Eeuo pipefail\nheading(){ :; }; step(){ :; }; fail(){ echo "$*"; exit 1; }\nAPP="$1/opt/anthias-rooms"; ETC="$1/etc/anthias-rooms"; DATA="$1/var/lib/anthias-rooms"; PACKAGES="$1/var/lib/anthias-rooms-packages.json"; SCRIPT_DIR="$2"\n'+block+'\nremove_all\n'
+    result=subprocess.run(['bash','-c',script,'bash',d,str(ROOT)],input='REMOVE ALL\n',text=True,capture_output=True,env=env,timeout=20)
+    self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+    try:self.assertEqual(connection.recv(1),b'')
+    except ConnectionResetError:pass
+    self.assertFalse((root/'var/lib/anthias-rooms').exists());self.assertFalse((root/'var/lib/anthias-rooms-packages.json').exists());self.assertFalse(site.exists())
+    shared_connection=socket.create_connection(('127.0.0.1',shared),timeout=2);shared_connection.close()
+    available=subprocess.run([sys.executable,'-c',check],capture_output=True,text=True);self.assertEqual(available.returncode,0,available.stderr)
+   finally:
+    if connection:connection.close()
+    subprocess.run([str(wrapper),'-s','stop'],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+
 if __name__=='__main__':unittest.main(verbosity=2)
