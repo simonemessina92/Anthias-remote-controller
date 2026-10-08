@@ -2,17 +2,19 @@
 
 ## Automated coverage
 
-The release workflow runs **154 tests**:
+The release workflow runs **161 tests**, plus browser regression checks at five viewport sizes:
 
 | Suite | Tests | Coverage |
 |---|---:|---|
-| Node | 92 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
-| HTTP backend | 42 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
+| Node | 96 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
+| HTTP backend | 45 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
 | WireGuard helper | 11 | LAN routes, split tunnel, keepalive, persistent keys, permissions, rejected subnets, missing handshake and unchanged configuration |
 | Installer | 2 | Permissions under umask 077 and complete removal in an isolated temporary tree using simulated system commands |
 | Nginx/TLS integration | 7 | Native GUI, absolute paths, cookie filtering, redirects, uploads, WebSocket upgrade and revoked ports |
 
 Syntax checks cover Bash, Python and frontend JavaScript. Nginx integration tests run with real Nginx/TLS in GitHub Actions; local environments without Nginx skip them. Test player payloads are synthetic. Backend tests use `AR_TEST=1` for loopback mock players and simulated WireGuard; production installation does not set it. Automated tests do not establish real HDMI playback or VPN performance.
+
+The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. Local execution passed 154 tests; the seven Nginx tests and browser checks require the release CI environment.
 
 ## Hardware acceptance
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Anthias Rooms VPS v1.0.1-dev1 DEV. Standard-library backend; no Chrome or runtime pip dependencies."""
+"""Anthias Rooms VPS v1.0.1-dev2 DEV. Standard-library backend; no Chrome or runtime pip dependencies."""
 import concurrent.futures, uuid, shutil
 import base64, hashlib, hmac, http.client, ipaddress, json, mimetypes, os, re, secrets, sqlite3, subprocess, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit, parse_qs, unquote
+from urllib.parse import urlsplit, parse_qs, unquote, urlencode
 from http.cookies import SimpleCookie
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get('AR_DATA', '/var/lib/anthias-rooms'))
@@ -14,6 +14,7 @@ DB = DATA / 'rooms.sqlite3'
 SETTINGS = Path(os.environ.get('AR_SETTINGS', '/etc/anthias-rooms/settings.json'))
 TEST = os.environ.get('AR_TEST') == '1'
 DB_LOCK = threading.RLock()
+THUMB_LOCK = threading.BoundedSemaphore(1)
 COOKIE = 'ar_session'
 SCANS={}
 SCAN_LOCK=threading.RLock()
@@ -197,7 +198,7 @@ class Handler(BaseHTTPRequestHandler):
     def authenticated(self):
         now=time.time()
         with connect() as db:
-            if self.gui_context():
+            if self.gui_context() and not self.token():
                 cookie=hashlib.sha256(self.cookie_token().encode()).hexdigest()
                 row=db.execute('SELECT expires FROM sessions WHERE gui_hash=?',(cookie,)).fetchone()
                 live=db.execute('SELECT 1 FROM sessions WHERE expires>? AND last_seen>? LIMIT 1',(now,now-90)).fetchone()
@@ -242,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.same_origin()
             p=urlsplit(self.path)
-            if p.path=='/health': return self.send({'ok':True,'version':'1.0.1-dev1'})
+            if p.path=='/health': return self.send({'ok':True,'version':'1.0.1-dev2'})
             if p.path.startswith('/ar/'): return self.api(p)
             if self.command!='GET': return self.send({'error':'Method not allowed'},405)
             name='panel.html' if p.path=='/' else unquote(p.path).lstrip('/')
@@ -396,8 +397,50 @@ class Handler(BaseHTTPRequestHandler):
             put('remote',{'subnet':cidr,'ports':ports})
             return self.send({'ok':True,'subnet':cidr})
         if p.path=='/ar/remote/profile' and self.command=='GET':return self.send(helper('profile'))
+        if p.path=='/ar/thumbnail' and self.command=='GET':return self.thumbnail(p)
         if p.path=='/ar/proxy':return self.proxy(p)
         return self.send({'error':'Not found'},404)
+    def thumbnail(self,p):
+        q=parse_qs(p.query);base=q.get('base',[''])[0];id=q.get('asset',[''])[0]
+        u=target(base)
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}',id):raise ValueError('Invalid asset identifier.')
+        if not any(r.get('base','').rstrip('/')==base for r in get('hmrConfig',DEFAULT)['rooms']):
+            return self.send({'error':'Player is not enrolled'},404)
+        if not THUMB_LOCK.acquire(blocking=False):return self.send({'error':'Thumbnail worker busy'},429)
+        try:
+            conn=(http.client.HTTPSConnection if u.scheme=='https' else http.client.HTTPConnection)(u.hostname,u.port,timeout=10)
+            try:
+                conn.request('GET','/api/v2/assets/'+id,headers={'Accept':'application/json'})
+                response=conn.getresponse();raw=response.read(131073)
+                if response.status!=200 or len(raw)>131072:raise ValueError('Asset metadata unavailable.')
+                asset=json.loads(raw)
+            finally:conn.close()
+            kind=asset.get('mimetype','')
+            if not (kind=='video' or kind.startswith('video/')) or asset.get('is_processing') or not str(asset.get('uri','')).startswith('/'):
+                raise ValueError('Ready local video required.')
+            key=hashlib.sha256((base+'|'+id+'|'+str(asset.get('uri'))+'|'+str(asset.get('metadata',{}))).encode()).hexdigest()
+            folder=DATA/'thumbnails';folder.mkdir(exist_ok=True);cache=folder/(key+'.jpg')
+            if cache.exists():raw=cache.read_bytes();os.utime(cache,None)
+            else:
+                # Read through the existing authenticated, validated player proxy.
+                # FFmpeg seeks using HTTP Range instead of buffering a video in RAM.
+                address='http://127.0.0.1:'+str(self.server.server_port)+'/ar/proxy?'+urlencode({'base':base,'path':'/assets/'+id+'/preview/'})
+                args=['ffmpeg','-nostdin','-hide_banner','-loglevel','error','-threads','1','-filter_threads','1',
+                      '-protocol_whitelist','http,tcp','-format_whitelist','mov,matroska,webm,avi',
+                      '-rw_timeout','15000000','-probesize','8000000','-analyzeduration','5000000',
+                      '-headers','X-AR-Tab: '+self.token()+'\r\n','-ss','0.1','-i',address,
+                      '-an','-sn','-dn','-vf','scale=640:640:force_original_aspect_ratio=decrease',
+                      '-frames:v','1','-f','image2pipe','-vcodec','mjpeg','-threads','1','pipe:1']
+                try:result=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=40)
+                except (FileNotFoundError,subprocess.TimeoutExpired):return self.send({'error':'Video thumbnail unavailable'},502)
+                raw=result.stdout
+                if result.returncode or not raw.startswith(b'\xff\xd8') or len(raw)>1024*1024:
+                    return self.send({'error':'Video thumbnail unavailable'},502)
+                cache.write_bytes(raw)
+                for old in sorted(folder.glob('*.jpg'),key=lambda f:f.stat().st_mtime,reverse=True)[100:]:old.unlink(missing_ok=True)
+            self.send_response(200);self.send_header('Content-Type','image/jpeg');self.send_header('Content-Length',str(len(raw)))
+            self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.end_headers();self.wfile.write(raw)
+        finally:THUMB_LOCK.release()
     def proxy(self,p):
         q=parse_qs(p.query);base=q.get('base',[''])[0];path=q.get('path',[''])[0];u=target(base)
         if not ALLOWED_PATH.fullmatch(path):raise ValueError('Unsupported player API path.')
@@ -441,5 +484,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__=='__main__':
     addr=os.environ.get('AR_BIND','127.0.0.1');port=int(os.environ.get('AR_PORT','8787'))
-    print(f'Anthias Rooms VPS 1.0.1-dev1 listening on {addr}:{port}',flush=True)
+    print(f'Anthias Rooms VPS 1.0.1-dev2 listening on {addr}:{port}',flush=True)
     ThreadingHTTPServer((addr,port),Handler).serve_forever()

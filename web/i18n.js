@@ -3,6 +3,21 @@ let language = 'en';
 export function setLanguage(value) { language = value === 'it' ? 'it' : 'en'; }
 export const getLanguage = () => language;
 export const IT = {
+  "Screen orientation":"Orientamento schermo",
+  "Screen orientation saved.":"Orientamento schermo salvato.",
+  "Screen orientation is not supported by this player.":"Questo player non supporta la lettura dell’orientamento schermo.",
+  "Invalid screen orientation.":"Orientamento schermo non valido.",
+  "The player did not confirm the new orientation. Refresh before retrying.":"Il player non ha confermato il nuovo orientamento. Aggiorna prima di riprovare.",
+  "Landscape (0°)":"Orizzontale (0°)",
+  "Portrait (90°)":"Verticale (90°)",
+  "Landscape, inverted (180°)":"Orizzontale invertito (180°)",
+  "Portrait, inverted (270°)":"Verticale invertito (270°)",
+  "Changing orientation reloads the player display and may briefly interrupt playback.":"Cambiare orientamento ricarica il display del player e può interrompere brevemente la riproduzione.",
+  "Already enrolled":"Già registrato",
+  "Players and previews refreshed.":"Player e anteprime aggiornati.",
+  "Refresh complete: {count} players unavailable.":"Aggiornamento completato: {count} player non raggiungibili.",
+  "Apply":"Applica",
+
   'Logout':'Esci',
   "Access player": "Accedi al player",
   "Invalid player access port.": "Porta accesso player non valida.",

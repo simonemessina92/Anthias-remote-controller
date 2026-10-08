@@ -24,7 +24,7 @@ install_app(){
   heading "INSTALL ANTHIAS ROOMS VPS"
   step 1 "Install dependencies"
   apt-get update
-  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2
+  DEBIAN_FRONTEND=noninteractive apt-get install -y python3 wireguard-tools nginx openssl sudo nftables iproute2 ffmpeg
   python3 - "$endpoint" "$tunnel" <<'PY'
 import ipaddress,re,sys
 host=sys.argv[1]
@@ -213,7 +213,7 @@ remove_all(){
   printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Shared Nginx/Python/WireGuard packages: preserved.\n\n' 
 }
 trap 'echo "Installation/action stopped at line $LINENO. Review the error above before retrying." >&2' ERR
-heading 'ANTHIAS ROOMS VPS v1.0.1-dev1 DEV'
+heading 'ANTHIAS ROOMS VPS v1.0.1-dev2 DEV'
 printf '  1. Install\n  2. Remove all\n\n'
 read -r -p 'Select: ' choice
 case "$choice" in 1) install_app;; 2) remove_all;; *) fail 'Choose 1 or 2.';; esac

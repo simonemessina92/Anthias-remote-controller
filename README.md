@@ -2,6 +2,16 @@
 
 **Anthias Rooms VPS v1.0.0 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
+## Development preview
+
+The `develop` branch provides **v1.0.1-dev2** with per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Use Settings → Players → Screen orientation to read or change the display rotation. FFmpeg is installed automatically for thumbnails; cached JPEGs are removed with the controller during Remove all.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+```
+
+Use a test VPS for this development version. See [development release notes](RELEASE_NOTES.md) for reinstall instructions and limitations.
+
 ## Stable installation and management
 
 On a clean Debian 12/13 or Ubuntu 22.04/24.04 VPS, run as root:

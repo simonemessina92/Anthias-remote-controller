@@ -3,6 +3,25 @@ import {t,getLanguage} from './i18n.js';
 import {mediaUrl,mediaKind,assetId} from './api.js';
 const MAX_BYTES=160*1024*1024;
 const blobs=new Map();
+const thumbnails=new Map();
+async function serverThumbnail(base,asset){
+  const key=previewKey(base,asset);
+  if(thumbnails.has(key))return thumbnails.get(key);
+  const task=(async()=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);
+    try{
+      for(let retry=0;retry<45;retry++){
+        const response=await fetch('/ar/thumbnail?'+new URLSearchParams({base,asset:asset.asset_id}),{headers:tabHeaders(),credentials:'same-origin',cache:'no-store',signal:controller.signal});
+        if(response.status===429){await response.body?.cancel();await new Promise(r=>setTimeout(r,1000));continue;}
+        if(!response.ok||!response.headers.get('Content-Type')?.startsWith('image/jpeg')){await response.body?.cancel();throw new Error('Thumbnail unavailable');}
+        return await boundedResponse(response,1024*1024,controller.signal);
+      }
+      throw new Error('Thumbnail worker busy');
+    }finally{clearTimeout(timer);}
+  })();
+  thumbnails.set(key,task);while(thumbnails.size>50)thumbnails.delete(thumbnails.keys().next().value);
+  try{return await task;}catch(error){thumbnails.delete(key);throw error;}
+}
 let dbPromise;
 function db() {
   if (!globalThis.indexedDB) return Promise.reject(new Error(t('Preview cache unavailable')));
@@ -19,6 +38,7 @@ async function thumbGet(key) {try {return await new Promise(async(resolve,reject
 async function thumbPut(key,blob) {try {const database=await db();await new Promise((resolve,reject)=>{const tx=database.transaction('thumbs','readwrite');tx.objectStore('thumbs').put(blob,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch{/* Preview caching must never prevent publishing. */}}
 export function previewKey(base,asset) {return `${base}|${asset.asset_id}|${asset.uri}`;}
 export async function forgetPreview(base,id) {
+  for(const key of thumbnails.keys())if(key.startsWith(`${base}|${id}|`))thumbnails.delete(key);
   for (const [key,value] of blobs) if(key.startsWith(`${base}|${id}|`)){blobs.delete(key);}
   try {const database=await db();const tx=database.transaction('thumbs','readwrite'),store=tx.objectStore('thumbs');const req=store.openCursor();req.onsuccess=()=>{const cursor=req.result;if(cursor){if(String(cursor.key).startsWith(`${base}|${id}|`))cursor.delete();cursor.continue();}};}catch{}
 }
@@ -79,6 +99,7 @@ async function fetchBlob(base,asset) {
 const localThumbnails = new WeakMap();
 export function stopPreview(container) { container?._stopPreview?.(); }
 export function releasePreview(container) {
+  container._previewEpoch=(container._previewEpoch||0)+1;
   container.dataset.key = '';
   container._stopPreview = null;
   clearContainer(container);
@@ -136,10 +157,14 @@ export async function showAssetPreview(container, base, asset, {compact = false}
   releasePreview(container); container.dataset.key = key;
   if (asset.is_processing) { text(container, t('Processing…')); return; }
   text(container, t('Loading preview…'));
-  const valid = () => container.dataset.key === key;
+  const epoch=container._previewEpoch;
+  const valid = () => container.dataset.key === key && container._previewEpoch===epoch;
   const video = mediaKind(asset) === 'video';
   try {
     let thumbnail = await thumbGet(previewKey(base, asset)), mediaBlob = null;
+    if(video){
+      try{thumbnail=await serverThumbnail(base,asset);void thumbPut(previewKey(base,asset),thumbnail);}catch{/* The existing local thumbnail remains a safe fallback. */}
+    }
     if (!valid()) return;
     if (!thumbnail && compact && video) { clearContainer(container); text(container, t('Video')); return; }
     if (!thumbnail) {

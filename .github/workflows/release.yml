@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install integration test dependencies
-        run: sudo apt-get update && sudo apt-get install -y nginx openssl
+        run: sudo apt-get update && sudo apt-get install -y nginx openssl ffmpeg
       - name: Verify source and installer
         run: |
           bash -n bootstrap.sh install.sh
@@ -31,6 +31,11 @@ jobs:
           python3 tests/test_wireguard.py
           sudo python3 tests/test_installer.py
           python3 tests/test_nginx.py
+      - name: Verify mobile and desktop layouts
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          python3 tests/test_browser.py
       - name: Build reproducible release assets
         run: python3 scripts/build_release.py
       - name: Validate release channel

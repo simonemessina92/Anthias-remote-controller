@@ -1858,3 +1858,57 @@ they never cover publishing controls. */
 a.btn[aria-disabled="true"]{opacity:.45;cursor:default;pointer-events:none;text-decoration:none}
 
 .logout-btn{white-space:nowrap;padding:8px 14px}
+
+/* Responsive cloud control: natural page scroll, no compressed desktop columns. */
+.already-enrolled {opacity:.55;background:rgba(128,128,128,.08)}
+#orientation-select {width:100%;margin-top:10px}
+@media(max-width:900px){
+  .app-body,.sidebar,main,.content-view,.settings-view,.settings-grid,.settings-right,.players-settings {min-width:0}
+  .sidebar {max-height:none;height:auto;padding:12px 16px;gap:10px}
+  .sidebar .room-list {display:flex;gap:10px;max-height:none;overflow-x:auto;overflow-y:visible;flex:none;padding:4px 0}
+  .sidebar .room-button {min-width:180px;flex:0 0 auto}
+  .sidebar-footer {padding:8px 0}
+  #content-view>.page-heading,.settings-heading {grid-template-columns:minmax(0,1fr);gap:12px}
+  #content-view>.page-heading>.heading-actions,.settings-heading>.actions {grid-column:1;grid-row:auto;max-width:none;justify-content:flex-start;flex-wrap:wrap}
+  .page-heading>div {min-width:0}
+  .page-heading h1 {overflow-wrap:normal;word-break:normal;font-size:1.65rem}
+  .notice-anchor {grid-column:1;grid-row:auto;min-height:0}
+  .notice-anchor:has(.toast:not([hidden])) {min-height:70px}
+  .settings-grid,.settings-right,.players-settings {height:auto;max-height:none;overflow:visible}
+  #settings-rooms {overflow:visible;max-height:none}
+  .settings-row {display:flex;flex-direction:column;align-items:stretch;gap:12px}
+  .row-actions,.section-head,.actions {flex-wrap:wrap;gap:10px;min-width:0}
+  .row-actions button {min-height:44px}
+  .top-actions {margin-left:auto}
+  .brand small {display:none}
+  .topbar {position:relative;align-items:center}
+  .main-nav {order:3;width:100%;display:flex}
+  .main-nav .nav-btn {flex:1;min-height:44px}
+  .content-card {min-height:0;padding:18px}
+  .preview {min-height:0;max-height:none;aspect-ratio:16/9}
+  .preview img,.preview video {width:100%;height:100%;object-fit:contain}
+  .work-area {grid-auto-rows:auto;gap:16px}
+  .dialog {width:calc(100vw - 24px);max-height:calc(100dvh - 24px);margin:auto}
+  .dialog-heading,.dialog-body,.dialog-footer {padding:16px}
+  .dialog-footer {flex-wrap:wrap}
+  .dialog-footer>.hint {flex-basis:100%}
+  .scan-fields {grid-template-columns:1fr}
+  .discovery-row {grid-template-columns:44px minmax(0,1fr)}
+  .discovery-row>input {grid-column:2;width:100%}
+}
+@media(max-width:480px){
+  .content-view,.settings-view {padding:16px}
+  .topbar {gap:8px;padding:10px 16px}
+  .top-actions {gap:6px}
+  .brand {font-size:1rem}
+  .brand-icon {width:32px;height:32px}
+  .page-heading .actions>.btn {flex:1;white-space:normal}
+  .card-heading h2 {font-size:1.35rem}
+  .settings-box {padding:16px}
+  .field-row {flex-wrap:wrap;gap:10px}
+  .field-row select {width:100%;min-width:0}
+}
+
+.settings-row {flex-wrap:wrap}
+.settings-row>.row-label {flex:1 1 140px}
+.row-actions {flex-wrap:wrap;max-width:100%}

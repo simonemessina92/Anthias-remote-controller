@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.1-dev2
+
+Player screen orientation; responsive phone/tablet layouts; authenticated server-generated video thumbnails; refresh feedback and preview retry; explicit disabled Already enrolled scan results.
+
+
 ## 1.0.1-dev1
 
 - Open the next development cycle from v1.0.0 GOLDEN.

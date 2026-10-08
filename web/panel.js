@@ -1,3 +1,4 @@
+import {readOrientation,writeOrientation} from './display-settings.js';
 import {openPlayerAccess} from './player-access.js';
 import {deleteMediaManually} from './manual-delete.js';
 import {scanViaVps,validateScanNetwork} from './server-scan.js';
@@ -18,6 +19,7 @@ import {homeSelectionBlock,homeMediaDraft} from './media-library.js';
 const $=id=>document.getElementById(id),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const runtime=new Map(),operations=new Map(),roomNodes=new Map(),previewIndexes=new Map(),logs=[];
 let config,security,admitted=false,selectedId='',view='content',editingId=null,savingPlayer=false;
+let orientationRoomId='',orientationBusy=false,orientationRead=0;
 let editor=null,library=null,fleet=null,discovery=null,infoRoomId='',toastTimer,settingsSignature='',gateStage='',wizardRows=[],wizardBusy=false,securityMode='change';
 const byId=id=>config?.rooms.find(r=>r.id===id),room=()=>byId(selectedId);
 const state=id=>{if(!runtime.has(id))runtime.set(id,{assets:[],online:null,updated:0,error:'',operationError:'',pending:null,revision:0,journal:null});return runtime.get(id);};
@@ -350,7 +352,7 @@ function renderSettings(){
   $('security-status').textContent=t(security?.enabled?'Password enabled':'Password disabled');$('change-password').textContent=t(security?.enabled?'Change password':'Set password');$('disable-password').hidden=true;
   const signature=JSON.stringify([getLanguage(),config.rooms.map(r=>[r.id,r.number,r.name,r.base])]);
   if(signature!==settingsSignature){settingsSignature=signature;$('settings-rooms').replaceChildren();
-    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions');actions.append(button(t('Access player'),'text-btn',()=>openPlayerAccess(r.id)),button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
+    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions');actions.append(button(t('Access player'),'text-btn',()=>openPlayerAccess(r.id)),button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Screen orientation'),'text-btn',()=>openOrientation(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
     if(!config.rooms.length)$('settings-rooms').append(node('p','muted',t('No players yet')));
   }
   for(const row of $('settings-rooms').children){if(!row.dataset.room)continue;row.querySelectorAll('button').forEach(b=>{b.disabled=operations.has(row.dataset.room);});}
@@ -438,6 +440,31 @@ async function runFleet(){
       }
     }));
   }finally{ref.running=false;ref.done=true;$('fleet-go').hidden=true;$('fleet-dialog').querySelectorAll('[data-close]').forEach(b=>{b.disabled=false;});$('fleet-result').textContent=t('{ok} restored · {failed} incomplete · {skipped} not selected',{ok,failed,skipped:ref.rows.size-ids.length});render();}
+}
+async function openOrientation(id){
+  const r=byId(id);if(!r?.base||orientationBusy)return;
+  orientationRoomId=id;const read=++orientationRead;
+  $('orientation-title').textContent=label(r)+' · '+t('Screen orientation');
+  $('orientation-error').textContent='';$('orientation-status').textContent=t('Loading…');
+  $('orientation-select').disabled=$('orientation-save').disabled=true;
+  $('orientation-dialog').showModal();
+  try{
+    const value=await readOrientation(apiFor(r));
+    if(read!==orientationRead||orientationRoomId!==id||!$('orientation-dialog').open)return;
+    $('orientation-select').value=String(value);$('orientation-select').disabled=$('orientation-save').disabled=false;
+    $('orientation-status').textContent=t('Changing orientation reloads the player display and may briefly interrupt playback.');
+  }catch(error){if(read===orientationRead)$('orientation-error').textContent=error.message;}
+}
+async function saveOrientation(){
+  if(orientationBusy||$('orientation-save').disabled)return;
+  const id=orientationRoomId,value=Number($('orientation-select').value);orientationBusy=true;
+  $('orientation-dialog').querySelectorAll('[data-close]').forEach(b=>b.disabled=true);
+  $('orientation-select').disabled=$('orientation-save').disabled=true;$('orientation-error').textContent='';
+  try{
+    const result=await withRoom(id,async({api,ensure})=>{await ensure();return writeOrientation(api,value);});
+    if(result.ok){closeDialog('orientation-dialog');toast(t('Screen orientation saved.'));}
+    else $('orientation-error').textContent=result.error;
+  }finally{orientationBusy=false;$('orientation-dialog').querySelectorAll('[data-close]').forEach(b=>b.disabled=false);$('orientation-select').disabled=$('orientation-save').disabled=false;}
 }
 async function openInfo(id){
   const r=byId(id);if(!r?.base)return;infoRoomId=id;$('open-anthias').disabled=!r.base;$('info-title').textContent=label(r);$('info-data').replaceChildren(node('dt','',t('Loading…')));$('info-dialog').showModal();
@@ -591,11 +618,11 @@ function renderDiscoveryResult(found){
     row.append(checkboxHit(check),text,input);$('scan-results').append(row);item={row,check,input,text,match};ref.nodes.set(found.base,item);
     action(check,()=>{if(check.checked)ref.selected.add(found.base);else ref.selected.delete(found.base);setDiscoveryBusy(ref);},'change');
   }
-  item.match=match;item.check.disabled=item.input.disabled=match.kind==='existing';
+  item.match=match;item.row.classList.toggle('already-enrolled',match.kind==='existing');item.check.disabled=item.input.disabled=match.kind==='existing';
   if(match.kind==='existing'){item.check.checked=false;ref.selected.delete(found.base);}
   if(match.player&&!item.input.value)item.input.value=match.player.name;
   item.text.replaceChildren(node('strong','',new URL(found.base).host),node('small','',`${found.info.device_model} · ${found.info.anthias_version}`),
-    node('small','',match.kind==='existing'?`${t('Already configured')} · ${label(match.player)}`:match.kind==='moved'?`${t('Update address')} · ${label(match.player)}`:t('New player')));
+    node('small','',match.kind==='existing'?`${t('Already enrolled')} · ${label(match.player)}`:match.kind==='moved'?`${t('Update address')} · ${label(match.player)}`:t('New player')));
   setDiscoveryBusy(ref);
 }
 async function addDiscovered(){
@@ -749,7 +776,17 @@ function bind(){
   action($('change-password'),()=>openSecurity('change'));action($('disable-password'),()=>openSecurity('disable'));action($('security-form'),saveSecurity,'submit');
   const logoutPanel=async()=>{if(operations.size||fleet?.running)throw new Error(t('Finish the current operation first.'));try{await lockSession();}finally{for(const d of document.querySelectorAll('dialog[open]'))d.close();editor=null;library=null;showGate('login');}};
   action($('lock'),logoutPanel);action($('gate-logout'),logoutPanel);
-  action($('refresh'),async()=>{$('refresh').classList.add('refreshing');try{await refreshAll();}finally{$('refresh').classList.remove('refreshing');}});
+  action($('orientation-save'),saveOrientation);
+  $('orientation-dialog').addEventListener('cancel',e=>{if(orientationBusy)e.preventDefault();});
+  action($('refresh'),async()=>{
+    const b=$('refresh');if(b.disabled)return;b.disabled=true;b.classList.add('refreshing');b.setAttribute('aria-busy','true');
+    try{
+      await refreshAll();
+      for(const role of ['home','event'])releasePreview($(`${role}-preview`));render();
+      const failed=config.rooms.filter(r=>r.base&&!online(r)).length;
+      toast(failed?t('Refresh complete: {count} players unavailable.',{count:failed}):t('Players and previews refreshed.'),failed?'warning':'success');
+    }finally{b.disabled=false;b.classList.remove('refreshing');b.removeAttribute('aria-busy');}
+  });
   action($('toast-close'),hideToast);window.addEventListener('resize',positionToast);
   const noticeObserver=new ResizeObserver(positionToast);for(const id of ['notice-anchor','settings-notice-anchor','toast'])noticeObserver.observe($(id));
   for(const role of ['home','event']){
@@ -777,7 +814,7 @@ function bind(){
   action($('import-file'),e=>{const file=e.target.files[0];e.target.value='';if(file)return importConfigFile(file);},'change');
   $('router-gui').href=`https://${location.hostname}:8443/`;
   action($('remote-router'),()=>showGate('remote'));
-  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'1.0.1-dev1-vps',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')))});});
+  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'1.0.1-dev2-vps',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')))});});
   action($('open-anthias'),()=>openPlayerAccess(infoRoomId));
   action($('reboot'),()=>rebootPlayer(infoRoomId));action($('quick-reboot'),()=>rebootPlayer(selectedId));
   document.querySelectorAll('[data-close]').forEach(b=>action(b,()=>closeDialog(b.dataset.close)));

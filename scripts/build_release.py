@@ -13,7 +13,7 @@ files=[]
 for f in ROOT.rglob('*'):
  relative=f.relative_to(ROOT)
  if not f.is_file() or any(x in ('.git','.github','dist','__pycache__','node_modules','fixtures','results') for x in relative.parts) or f.name=='SHA256SUMS.txt':continue
- if f.suffix not in ('.py','.js','.mjs','.sh','.html','.css','.png','.json','.md','.txt','.mp4'):continue
+ if f.suffix not in ('.py','.js','.cjs','.mjs','.sh','.html','.css','.png','.json','.md','.txt','.mp4'):continue
  files.append(f)
 files.sort()
 manifest=''.join(hashlib.sha256(f.read_bytes()).hexdigest()+'  '+f.relative_to(ROOT).as_posix()+'\n' for f in files)

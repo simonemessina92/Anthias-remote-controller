@@ -143,6 +143,29 @@ class Backend(unittest.TestCase):
         self.call('/ar/auth/login',{'password':'Password123'},opener=op)
         self.assertNotEqual(tok,self.tokens[op])
         self.assertTrue(self.call('/ar/auth/status',headers={'X-AR-Tab':tok})[1]['authenticated'])
+    def test_43_thumbnail_requires_tab_login(self):
+        path='/ar/thumbnail?'+urlencode({'base':self.base,'asset':'v1'})
+        self.assertEqual(self.call(path,opener=self.anon)[0],401)
+    def test_44_thumbnail_requires_enrolled_player(self):
+        self.assertEqual(self.call('/ar/thumbnail?'+urlencode({'base':self.base,'asset':'v1'}))[0],404)
+    def test_45_thumbnail_real_ffmpeg_and_revocation(self):
+        original=copy.deepcopy(self.call('/ar/storage/get',{'keys':'hmrConfig'})[1]['hmrConfig'])
+        c=copy.deepcopy(original);c['rooms']=[{'id':'thumbnail-test','base':self.base}]
+        with tempfile.TemporaryDirectory() as d:
+            video=Path(d)/'generated.mp4'
+            subprocess.run(['ffmpeg','-nostdin','-v','error','-f','lavfi','-i','color=c=purple:s=160x90:d=1','-c:v','libx264','-threads','1','-pix_fmt','yuv420p','-movflags','+faststart',str(video)],check=True)
+            previous=self.player.data.get('event.mp4');self.player.data['event.mp4']=video.read_bytes()
+            try:
+                self.save_config(c)
+                path='/ar/thumbnail?'+urlencode({'base':self.base,'asset':'v1'})
+                code,raw=self.call(path);self.assertEqual(code,200);self.assertTrue(raw.startswith(b'\xff\xd8'))
+                code,cached=self.call(path);self.assertEqual(code,200);self.assertEqual(raw,cached)
+                self.assertEqual(self.call('/ar/thumbnail?'+urlencode({'base':self.base,'asset':'h1'}))[0],400)
+                self.save_config(original);self.assertEqual(self.call(path)[0],404)
+            finally:
+                if previous is None:self.player.data.pop('event.mp4',None)
+                else:self.player.data['event.mp4']=previous
+                self.save_config(original)
     def test_01_anonymous_cannot_read_remote(self):self.assertEqual(self.call('/ar/remote',opener=self.anon)[0],401)
     def test_02_anonymous_cannot_read_saved_config(self):self.assertEqual(self.call('/ar/storage/get',{'keys':'hmrConfig'},opener=self.anon)[1]['hmrConfig']['rooms'],[])
     def test_03_anonymous_cannot_proxy(self):self.assertEqual(self.proxy('/api/v2/info',opener=self.anon)[0],401)
@@ -193,7 +216,7 @@ class Backend(unittest.TestCase):
         jar=http.cookiejar.CookieJar();op=build_opener(HTTPCookieProcessor(jar));self.call('/ar/auth/login',{'password':'Password123'},opener=op)
         self.assertTrue(any('HttpOnly' in c._rest and c._rest.get('SameSite')=='Strict' for c in jar))
     def test_27_static_page_and_modules(self):
-        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(b'VPS v1.0.1-dev1',html)
+        code,html=self.call('/');self.assertEqual(code,200);self.assertIn(('VPS v'+json.loads((ROOT/'package.json').read_text())['version']).encode(),html)
         self.assertEqual(self.call('/vps-adapter.js')[0],200)
     def test_28_storage_arbitrary_key_rejected(self):self.assertEqual(self.call('/ar/storage/set',{'items':{'auth':{'enabled':False}}})[0],400)
     def test_29_reboot_with_lock(self):

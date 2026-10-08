@@ -23,7 +23,7 @@ class Player:
     def __init__(self, n):
         self.assets = {f'h{n}': asset(f'h{n}', f'Home · Room {n}', 'portrait.png' if n == 1 else 'hotel2.png', True), f'e{n}': asset(f'e{n}', f'Event · Room {n}', 'event.png'), f'v{n}': asset(f'v{n}', 'Library video', 'event.mp4'), f'x{n}': asset(f'x{n}', 'Unused archive', 'event.png')}
         self.number = n
-        self.settings = {'shuffle_playlist': False}
+        self.settings = {'shuffle_playlist': False, 'screen_rotation': 0}
         self.counter = 0
         self.data = {}
         self.uploadDelay = 0
