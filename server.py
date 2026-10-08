@@ -198,7 +198,7 @@ class Handler(BaseHTTPRequestHandler):
     def authenticated(self):
         now=time.time()
         with connect() as db:
-            if self.gui_context() and not self.token():
+            if self.gui_context() and (not self.token() or urlsplit(self.path).path in ('/ar/router-auth','/ar/player-auth')):
                 cookie=hashlib.sha256(self.cookie_token().encode()).hexdigest()
                 row=db.execute('SELECT expires FROM sessions WHERE gui_hash=?',(cookie,)).fetchone()
                 live=db.execute('SELECT 1 FROM sessions WHERE expires>? AND last_seen>? LIMIT 1',(now,now-90)).fetchone()
