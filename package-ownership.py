@@ -63,9 +63,23 @@ def record(snapshot,path):
     data['packages']=sorted(set(data['packages'])|(packages()-baseline));data['sources']=sorted(set(data.get('sources',[]))|{'snapshot'})
     save(path,data)
 
+def purge_environment(owned):
+    env={**os.environ,'DEBIAN_FRONTEND':'noninteractive'}
+    if any(name.split(':')[0]=='sudo' for name in owned):
+        if os.geteuid()!=0:raise ValueError('Package purge requires root.')
+        caller=os.environ.get('SUDO_USER','')
+        if caller and caller!='root':
+            password=next((row.split(':')[1] for row in Path('/etc/shadow').read_text().splitlines() if row.startswith('root:')),'')
+            if not password or password.startswith(('!','*')):raise ValueError('Cannot purge installer-added sudo from a sudo-only administrator session while root has no password. Use a direct root login; nothing was removed.')
+        # A direct root session (including SSH-key authentication) supplies the
+        # alternative administrative access requested by sudo's removal script.
+        env['SUDO_FORCE_REMOVE']='yes'
+    return env
+
 def plan(path):
     data=load(path);owned=sorted(set(data['packages'])&packages())
     if not owned:return []
+    purge_environment(owned)
     result=subprocess.run(['apt-get','-o','APT::Get::AutomaticRemove=false','-s','purge',*owned],check=True,capture_output=True,text=True,env={**os.environ,'LC_ALL':'C'})
     removed=set(re.findall(r'^(?:Remv|Purg) (\S+)',result.stdout,re.M));allowed={x.split(':')[0] for x in owned}
     extra={x for x in removed if x.split(':')[0] not in allowed}
@@ -81,7 +95,7 @@ def probe_ports():
 
 def purge(path):
     owned=plan(path)
-    if owned:subprocess.run(['apt-get','-o','APT::Get::AutomaticRemove=false','purge','-y',*owned],check=True,env={**os.environ,'DEBIAN_FRONTEND':'noninteractive'})
+    if owned:subprocess.run(['apt-get','-o','APT::Get::AutomaticRemove=false','purge','-y',*owned],check=True,env=purge_environment(owned))
     remaining=set(load(path)['packages'])&packages()
     if remaining:raise ValueError('Package purge incomplete: '+', '.join(sorted(remaining)))
     names={x.split(':')[0] for x in load(path)['packages']}

@@ -48,6 +48,12 @@ class Packages(unittest.TestCase):
     return subprocess.CompletedProcess(args,0,'Purg ffmpeg [1]\nPurg libavcodec61 [1]\n')
    with patch.object(ownership,'packages',side_effect=lambda:set(current)),patch.object(ownership.subprocess,'run',side_effect=run) as call:ownership.purge(receipt)
    self.assertFalse(receipt.exists());self.assertEqual(current,{'python3:amd64'});self.assertNotIn('--auto-remove',call.call_args.args[0])
+ def test_direct_root_session_can_purge_installer_added_sudo(self):
+  with patch.dict(ownership.os.environ,{'SUDO_USER':''}),patch.object(ownership.os,'geteuid',return_value=0):
+   self.assertEqual(ownership.purge_environment(['sudo:amd64'])['SUDO_FORCE_REMOVE'],'yes')
+ def test_sudo_only_session_with_locked_root_stops_before_removal(self):
+  with patch.dict(ownership.os.environ,{'SUDO_USER':'operator'}),patch.object(ownership.os,'geteuid',return_value=0),patch.object(ownership.Path,'read_text',return_value='root:!:1:0:99999:7:::\n'):
+   with self.assertRaisesRegex(ValueError,'nothing was removed'):ownership.purge_environment(['sudo:amd64'])
  def test_failed_purge_keeps_receipt_for_retry(self):
   with tempfile.TemporaryDirectory() as d:
    receipt=Path(d)/'receipt';ownership.save(receipt,{'version':1,'packages':['ffmpeg:amd64']})

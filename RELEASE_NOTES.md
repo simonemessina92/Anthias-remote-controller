@@ -1,6 +1,7 @@
 # Anthias Rooms VPS v1.0.1-dev5
 
 - Repair legacy package ownership when APT history records architecture-independent packages using the host architecture. Existing DEV4 receipts are repaired automatically, including the missing icon, ALSA, desktop schema and GTK common packages. Foreign architectures remain distinct.
+- Installer-added sudo can be purged from a direct root session, including SSH-key authentication. A sudo-only session with locked root stops before removal. Pre-existing sudo is preserved.
 - Limit APT purge to installer-owned packages; unrelated automatic cleanup is disabled. Baseline packages remain protected.
 - Release publication requires real install → purge → reinstall → purge cycles on Debian 12, Debian 13 and Ubuntu 24.04, for both fresh installs and migration from the legacy installer with a broken DEV4 receipt. Tests leave a player GUI connection open during removal and compare the package baseline after each purge.
 
