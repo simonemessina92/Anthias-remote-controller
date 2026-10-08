@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.1-dev3
+
+- Fix mobile navigation overlapping the player sidebar, oversized player settings rows and playlist editor labels colliding with timing controls.
+- Add browser geometry checks for navigation, settings and image/video playlist rows at phone, tablet and desktop sizes. No new runtime dependencies.
+
 ## v1.0.1-dev2
 
 Player screen orientation; responsive phone/tablet layouts; authenticated server-generated video thumbnails; refresh feedback and preview retry; explicit disabled Already enrolled scan results.

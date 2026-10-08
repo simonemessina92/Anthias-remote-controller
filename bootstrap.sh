@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-VERSION=1.0.1-dev2
+VERSION=1.0.1-dev3
 REPO=simonemessina92/Anthias-remote-controller
 [[ $EUID == 0 ]] || { echo 'Run this command as root on the VPS.' >&2; exit 1; }
 # Existing managed installs can be removed offline using this same local menu.

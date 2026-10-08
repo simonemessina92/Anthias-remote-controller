@@ -1,10 +1,12 @@
-# Anthias Rooms VPS v1.0.1-dev2
+# Anthias Rooms VPS v1.0.1-dev3
 
-- Set each player's screen orientation to 0°, 90°, 180° or 270° from Settings → Players → Screen orientation. The current value is read from Anthias and verified after saving.
-- Responsive layouts for phones, tablets and desktops. Player selection no longer clips on mobile; Settings headings and actions wrap correctly.
-- Shared video thumbnails generated on the VPS, including videos above the browser's 160 MB preview limit. Browser decoding support no longer determines whether a thumbnail appears. FFmpeg runs one worker with one decode thread and keeps at most 100 JPEGs.
-- Refresh updates player status and retries the visible previews, with a visible completion message and unavailable-player count.
-- Previously enrolled players are greyed out as **Already enrolled** in discovery and cannot be selected again. Address updates for a verified moved player remain available.
+- Mobile navigation reserves its full height above the player list.
+- Player settings use compact rows without excess vertical space.
+- Playlist editor separates thumbnails, filenames, timing and reorder/delete controls on phones and tablets. Footer buttons fit narrow screens.
+- Content actions wrap together; empty notification areas no longer reserve a blank row.
+- Browser checks now detect overlapping sections and playlist controls, including long filenames and local uploads.
+
+Orientation, server-generated thumbnails and refresh behavior from dev2 remain available. No additional runtime dependencies.
 
 Install on a test VPS as root:
 

@@ -4,7 +4,7 @@
 
 ## Development preview
 
-The `develop` branch provides **v1.0.1-dev2** with per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Use Settings → Players → Screen orientation to read or change the display rotation. FFmpeg is installed automatically for thumbnails; cached JPEGs are removed with the controller during Remove all.
+The `develop` branch provides **v1.0.1-dev3** with per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Use Settings → Players → Screen orientation to read or change the display rotation. FFmpeg is installed automatically for thumbnails; cached JPEGs are removed with the controller during Remove all.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)

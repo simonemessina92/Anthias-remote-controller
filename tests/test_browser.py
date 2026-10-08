@@ -13,5 +13,5 @@ try:
         Backend().lock('hmr-config-v3')
         try:assert Backend.call('/ar/storage/set',{'items':{'hmrConfig':c}})[0]==200
         finally:Backend().lock('hmr-config-v3',action='release')
-        subprocess.run(['node',str(ROOT/'tests/browser.cjs')],env={**os.environ,'AR_BROWSER_URL':Backend.url,'AR_BROWSER_BASE':Backend.base},check=True)
+        subprocess.run(['node',str(ROOT/'tests/browser.cjs')],env={**os.environ,'AR_BROWSER_URL':Backend.url,'AR_BROWSER_BASE':Backend.base,'AR_BROWSER_VIDEO':str(video)},check=True)
 finally:Backend.tearDownClass()

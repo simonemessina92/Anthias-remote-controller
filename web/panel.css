@@ -1912,3 +1912,38 @@ a.btn[aria-disabled="true"]{opacity:.45;cursor:default;pointer-events:none;text-
 .settings-row {flex-wrap:wrap}
 .settings-row>.row-label {flex:1 1 140px}
 .row-actions {flex-wrap:wrap;max-width:100%}
+
+/* Mobile sections must participate in page flow, including the wrapped navigation. */
+@media(max-width:900px) {
+  .app {grid-template-rows:auto minmax(0,1fr)}
+  .topbar {flex-shrink:0}
+  .main-nav {flex:0 0 100%;min-width:0}
+  .settings-row>.row-label {flex:none;align-content:start}
+  #content-view>.page-heading>.heading-actions {flex-direction:row;align-items:center;gap:10px}
+  .notice-anchor:not(:has(.toast:not([hidden]))) {display:none}
+  .editor-tools {padding:12px 16px;flex-wrap:wrap}
+  .editor-list {padding:0 16px}
+  .editor-status {padding:12px 16px;gap:8px}
+  .editor-row {
+    display:grid;
+    grid-template-columns:20px 24px 60px minmax(0,1fr);
+    align-items:center;
+    gap:10px 8px;
+    min-height:0;
+    padding:14px 0;
+  }
+  .editor-row .drag-handle {grid-column:1;grid-row:1}
+  .editor-row .item-index {grid-column:2;grid-row:1;min-width:0}
+  .editor-row .item-thumb {grid-column:3;grid-row:1;width:60px;height:52px;aspect-ratio:auto}
+  .editor-row .item-label {grid-column:4;grid-row:1;min-width:0;gap:4px}
+  .editor-row .item-label small {overflow-wrap:anywhere}
+  .editor-row .timing {grid-column:1/4;grid-row:2;width:auto;min-width:0}
+  .editor-row .item-tools {grid-column:4;grid-row:2;flex-direction:row;justify-content:flex-end;gap:0;min-width:0}
+  .editor-row .item-tools .icon-btn {width:44px;min-width:44px;min-height:44px;padding:8px}
+  .editor-dialog .dialog-heading>div {min-width:0}
+  .editor-dialog .dialog-heading h2 {overflow-wrap:anywhere}
+}
+@media(max-width:480px) {
+  .editor-dialog .dialog-footer {gap:10px}
+  .editor-dialog .dialog-footer>.btn {width:100%;white-space:normal}
+}

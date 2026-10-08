@@ -14,7 +14,7 @@ The release workflow runs **161 tests**, plus browser regression checks at five 
 
 Syntax checks cover Bash, Python and frontend JavaScript. Nginx integration tests run with real Nginx/TLS in GitHub Actions; local environments without Nginx skip them. Test player payloads are synthetic. Backend tests use `AR_TEST=1` for loopback mock players and simulated WireGuard; production installation does not set it. Automated tests do not establish real HDMI playback or VPN performance.
 
-The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. Local execution passed 154 tests; the seven Nginx tests and browser checks require the release CI environment.
+The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. DEV3 also checks navigation/sidebar separation, compact player labels and non-overlapping playlist image/video controls with long local filenames. Local execution passed 154 tests; the seven Nginx tests and browser checks require the release CI environment.
 
 ## Hardware acceptance
 
