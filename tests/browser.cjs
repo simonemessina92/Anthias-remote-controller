@@ -24,7 +24,7 @@ const fs=require('fs'),assert=require('assert');
  for(const size of [[360,800],[390,844],[768,1024],[1024,768],[1920,1080]]){
   const context=await browser.newContext({viewport:{width:size[0],height:size[1]}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(host.url);await page.waitForSelector('#gate-password');await page.fill('#gate-password','Password123');await page.getByRole('button',{name:'Unlock',exact:true}).click();
-  await page.waitForSelector('#app:not([hidden])');await page.waitForFunction(()=>document.querySelector('#event-preview img')?.naturalWidth>0);
+  try{await page.waitForSelector('#app:not([hidden])');}catch(error){console.error({errors,gate:await page.locator('#gate').innerText()});throw error;}await page.waitForFunction(()=>document.querySelector('#event-preview img')?.naturalWidth>0);
   assert(await page.locator('#event-preview img').evaluate(e=>e.naturalWidth>0),'video thumbnail absent');
   const overflow=await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth}));assert(overflow.sw<=overflow.w+1,JSON.stringify(overflow));
   await separate(page,'.main-nav','.sidebar-title');
