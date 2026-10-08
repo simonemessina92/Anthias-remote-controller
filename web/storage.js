@@ -24,7 +24,7 @@ export function cleanItems(items) {
 export const itemIds = items => (items || []).map(x => x.id);
 export function newRoom(name = 'Player', base = '', number = 1) {
   return {id:`room-${crypto.randomUUID()}`, number, name:normalizeName(name,true), base:normalizeBase(base), identity:'',
-    playlists:{home:[], event:[]}, lastPublished:null, homeHistory:[], eventHistory:[], uploadedIds:[], managedEventIds:[], cleanup:[]};
+    sharedRevision:'', playlists:{home:[], event:[]}, lastPublished:null, homeHistory:[], eventHistory:[], uploadedIds:[], managedEventIds:[], cleanup:[]};
 }
 export function defaultConfig() {
   return {schema:4, language:'en', setupComplete:false, wizardDraft:null, nextPlayerNumber:1, autoCleanup:true, defaultImageDuration:15, discovery:{address:'',subnet:'24',port:80,protocol:'http'}, rooms:[]};
@@ -48,7 +48,7 @@ export function migrateConfig(value) {
     if(value.schema===4 && ['home','event'].includes(r.lastPublished?.role)) lastPublished={role:r.lastPublished.role,items:cleanItems(r.lastPublished.items||[])};
     const cleanup=(Array.isArray(r.cleanup)?r.cleanup:[]).filter(j=>j && unique([j.assetId]).length && j.base===base)
       .map(j=>({assetId:j.assetId,targetIds:unique(j.targetIds || [j.targetId]),base,notBefore:Number(j.notBefore)||0,attempts:Number(j.attempts)||0,lastError:String(j.lastError||'')})).filter(j=>j.targetIds.length);
-    return {id:r.id,number,name:normalizeName(r.name,true),base,identity:String(r.identity||'').slice(0,160),playlists,lastPublished,
+    return {id:r.id,number,name:normalizeName(r.name,true),base,identity:String(r.identity||'').slice(0,160),sharedRevision:String(r.sharedRevision||'').slice(0,128),playlists,lastPublished,
       homeHistory:unique(value.schema===4?r.homeHistory:r.hotelHistory),eventHistory,uploadedIds,managedEventIds,cleanup};
   });
   const max=Math.max(0,...numbers), rawDuration=Number(value.defaultImageDuration);

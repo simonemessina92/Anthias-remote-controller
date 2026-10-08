@@ -1,21 +1,24 @@
-# Anthias Rooms VPS v1.0.1 GOLDEN
+# Anthias Rooms VPS v1.0.2-dev1
 
-[Download the complete ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/v1.0.1/Anthias_Rooms_VPS_v1.0.1.zip)
+[Download ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/v1.0.2-dev1/Anthias_Rooms_VPS_v1.0.2-dev1.zip)
 
-- Set each player's screen orientation from Settings.
-- Responsive phone and tablet layouts, including navigation, player settings and playlist controls.
-- Server-generated video thumbnails, refresh feedback and disabled Already enrolled discovery results.
-- Remove all purges installer-added packages and configuration, closes old Nginx connections and frees the player GUI ports. Pre-existing packages and player media are preserved.
-- Recover legacy package ownership and automatically repair incomplete DEV4 receipts.
+- Share current and prepared Home/Event playlists with Chrome v3.1.0-dev2 through a disabled player-resident record.
+- Refresh and reconcile state before writes; reject stale editor revisions and discard obsolete cleanup jobs.
+- Recover unambiguous legacy Home/Event upload labels without granting deletion rights.
+- Coordinate updated controllers with a short lease and protect interrupted publication recovery.
 
-Run as root on the VPS:
+Main and the v1.0.1 GOLDEN release remain unchanged. No new runtime dependencies or player services.
+
+Run as root on the test VPS:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
 ```
 
-To replace an existing installation, select **2. Remove all**, type **REMOVE ALL**, then run the command again and select **1. Install**. Controller settings and VPN keys are deleted; export settings beforehand if needed. Import the new WireGuard profile into the router. Player media remain on the players.
+Remove the current VPS installation with option 2, confirm REMOVE ALL, then rerun and install with option 1. Export controller settings first if needed; removal deletes settings and VPN keys but preserves player media. Import the new router WireGuard profile.
 
-Firewall ports: TCP 80, 443, 8443, 8444–8543; UDP 443. FFmpeg is required for video thumbnails. Rotation can briefly interrupt playback. Thumbnails are file previews; video playback in the browser depends on codec support.
+[Download the compatible Chrome DEV](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev2). Replace files in the same extension folder and Reload. The extension ID remains unchanged.
 
-Validation: 173 automated tests, five browser viewport checks and six full install/purge/reinstall/purge cycles on Debian 12, Debian 13 and Ubuntu 24.04. Field acceptance includes mobile layout, orientation, previews and removal. The local Chrome extension remains independent.
+Leave **[HMR] Controller state v1** disabled in the native Anthias list. Refresh each controller after edits from the other. Older controllers/native Anthias do not participate in the cooperative lock: avoid concurrent writes. If publication is interrupted, recover it from its original controller.
+
+Validation includes 186 source tests, five VPS viewport checks, the real Chrome extension at five viewport sizes, two-way UI synchronization, stale-editor rejection and Home restoration, plus six complete VPS install/purge cycles. Physical-player acceptance is required before promotion.

@@ -2,7 +2,7 @@ const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES?process.
 const fs=require('fs'),assert=require('assert');
 (async()=>{
  const host={url:process.env.AR_BROWSER_URL,base:process.env.AR_BROWSER_BASE};
- const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const browser=await chromium.launch({channel:'chromium',headless:true,args:['--no-sandbox']});
  const report=[];
  async function separate(page,left,right){
   const a=await page.locator(left).boundingBox(),b=await page.locator(right).boundingBox();

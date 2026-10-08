@@ -50,6 +50,14 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium
           python3 tests/test_browser.py
+      - uses: actions/checkout@v4
+        with:
+          ref: 76ad9e71a97b538a5621e579dba0b56308a93777
+          path: tests/fixtures/chrome
+      - name: Verify local Chrome and VPS synchronization
+        env:
+          AR_EXTENSION_DIR: ${{ github.workspace }}/tests/fixtures/chrome/extension
+        run: python3 tests/test_controller_sync.py
       - name: Build reproducible release assets
         run: python3 scripts/build_release.py
       - name: Validate release channel

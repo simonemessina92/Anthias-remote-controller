@@ -2,11 +2,11 @@
 
 ## Automated coverage
 
-The release workflow runs **173 tests**, plus browser regression checks at five viewport sizes:
+The release workflow runs **186 tests**, plus browser regression checks at five viewport sizes:
 
 | Suite | Tests | Coverage |
 |---|---:|---|
-| Node | 96 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
+| Node | 109 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
 | HTTP backend | 45 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
 | WireGuard helper | 11 | LAN routes, split tunnel, keepalive, persistent keys, permissions, rejected subnets, missing handshake and unchanged configuration |
 | Package ownership/purge | 11 | Snapshot ownership, compressed legacy history, unrelated dependency protection, failed purge retries and real disposable DEB/conffile purge |
@@ -43,3 +43,9 @@ Check the GitHub Actions run for the release commit before using its assets. Fur
 Removal coverage runs Remove all against a real disposable Nginx instance with an unfinished HTTP connection on player port 8444. It checks connection closure, thumbnail/database removal, continued shared-site operation and immediate address reuse. Pre-existing Nginx is preserved; restarting shared Nginx briefly interrupts its connections. Installer-added Nginx and other dependencies are purged. The package integration uses two disposable DEBs to verify removal of a package, its dependency and configuration files without touching baseline packages.
 
 Release publication additionally requires six complete installer lifecycle runs: Debian 12, Debian 13 and Ubuntu 24.04, each with fresh installation and legacy migration. These use disposable containers with real systemd, WireGuard, Nginx and APT; they check install, purge with a pending player connection, reinstall and a second purge, restoring the package baseline after both removals. Legacy cases deliberately recreate the broken DEV4 receipt for Architecture: all packages.
+
+## Shared-controller development coverage
+
+Thirteen state protocol tests cover legacy recognition/ambiguity, staged Home during Event playback, two-way changes, clean controller enrollment, native timing/order changes, manual deletion, malformed/duplicate records, lease exclusion/expiry/loss, stale cleanup invalidation and interrupted recovery.
+
+The release workflow loads the actual keyed Chrome extension alongside the VPS page against one synthetic HTTP player. It verifies native previews, orientation read/write, five viewport layouts, refresh, local-to-cloud changes, cloud-to-local changes, stale-editor rejection and Home restoration. The extension checkout is pinned to commit `76ad9e71a97b538a5621e579dba0b56308a93777`. Native Anthias API validation is based on the official asset API: names are text fields and create/PATCH expose name; skip_asset_check permits an inactive reserved web record. Hardware validation remains pending.

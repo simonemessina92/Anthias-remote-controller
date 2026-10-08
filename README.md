@@ -2,6 +2,20 @@
 
 **Anthias Rooms VPS v1.0.1 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
+## Development: shared player playlists
+
+**VPS v1.0.2-dev1** and [Chrome v3.1.0-dev2](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev2) read and write shared Home/Event assignments on each Anthias player. Main remains v1.0.1 GOLDEN.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+```
+
+Use both updated controllers for the test. The player contains one disabled **[HMR] Controller state v1** web asset with assignments, prepared order/duration, published snapshot and a short operation lease. Its reserved `.invalid` URI is never used for playback; URL checks are disabled and the schedule is in the future. Keep this record disabled and do not rename it. No service or package is installed on the player.
+
+Refresh reads shared assignments. A new remote revision invalidates an open editor and stale cleanup jobs. Recognized legacy upload names can recover a single inactive file or an unambiguous active playlist, but several inactive files with the same role require explicit selection. Legacy recognition does not authorize automatic deletion.
+
+Anthias has no atomic compare-and-swap API. Updated controllers cooperate through a lease checked before writes; older controllers and the native GUI do not honor it. Avoid concurrent native/old-controller edits. The lease expires after 60 seconds if the controller closes; interrupted publication recovery remains reserved to its original controller. Recover there before continuing. No password, room name, VPS address or VPN key is stored in the player record.
+
 ## Included in v1.0.1
 
 Per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Change rotation in Settings → Players → Screen orientation. FFmpeg is installed automatically for thumbnails.
@@ -69,7 +83,7 @@ Native router/player GUIs require a panel session active within the last 90 seco
 
 Keep the panel tab open while Home/Event operations run: the backend stores state and handles transport, but it is not an autonomous job runner. Native GUI edits may require refreshing the Rooms panel. Player-side Anthias API authentication is not supported by this version. Each VPS instance has one remote network and one administrator account; it is not a multi-tenant service.
 
-The original local Chrome GOLDEN remains independent. Browser and cloud Home/Event assignments are not automatically synchronized. Use one controller at a time for operations affecting the same players. Local configuration can be imported after network setup if its addresses match the remote subnet; backups do not contain media.
+The original local Chrome GOLDEN remains independent and does not support shared assignments. The development extension linked above shares Home/Event state with this DEV VPS. Local configuration can be imported after network setup if its addresses match the remote subnet; backups do not contain media.
 
 ## Branches and releases
 

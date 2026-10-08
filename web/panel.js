@@ -1,3 +1,4 @@
+import {reconcilePlayer,beginPlayerSession,isStateAsset} from './player-state.js';
 import {readOrientation,writeOrientation} from './display-settings.js';
 import {openPlayerAccess} from './player-access.js';
 import {deleteMediaManually} from './manual-delete.js';
@@ -113,7 +114,7 @@ function render(){
   $('recovery').hidden=!s.journal;$('recover').disabled=Boolean(op);
   renderCard(r,'home');renderCard(r,'event');positionToast();
   $('room-operation').hidden=!op;if(op){$('operation-label').textContent=op.text;if(typeof op.percent==='number')$('progress').value=op.percent;else $('progress').removeAttribute('value');}
-  $('status-detail').textContent=[s.updated?t('Playlist checked at {time}',{time:new Date(s.updated).toLocaleTimeString(getLanguage()==='it'?'it-IT':'en-GB')}):'',t('File previews · not a live HDMI return')].filter(Boolean).join(' · ');
+  $('status-detail').textContent=[s.updated?t('Playlist checked at {time}',{time:new Date(s.updated).toLocaleTimeString(getLanguage()==='it'?'it-IT':'en-GB')}):'',t('File previews · not a live HDMI return'),s.syncWarning||''].filter(Boolean).join(' · ');
   $('cleanup-status').textContent=r.cleanup.length?t('{count} files awaiting cleanup',{count:r.cleanup.length}):'';$('retry-cleanup').hidden=!r.cleanup.length;$('retry-cleanup').disabled=Boolean(op)||!config.autoCleanup;
 }
 async function refreshRoom(id,{duringOperation=false}={}){
@@ -135,6 +136,7 @@ async function refreshRoom(id,{duringOperation=false}={}){
         else if(Date.now()>reboot.deadline){s.reboot=null;toast(`${label(r)}: ${t('Player is reachable. Restart could not be confirmed.')}`,'warning');}
         else{s.assets=assets;s.online=true;s.error='';return;}
       }
+      if(!await readJournal(id))config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target&&target.base===base&&s.revision===revision){const sync=reconcilePlayer(target,assets);s.syncWarning=sync.warning;}});
       s.assets=assets;s.online=true;s.updated=Date.now();s.error='';
       if(wasOnline===false&&!s.reboot&&id===selectedId)log(id,{connection:'online'});
     }catch(error){
@@ -170,18 +172,23 @@ async function withRoom(id,fn,{silent=false,refreshAfter=true}={}){
       const latest=await loadConfig(),found=latest.rooms.find(r=>r.id===id);if(!found||found.base!==initial.base)throw new Error(t('Player configuration changed. Reopen it and try again.'));
       config=latest;const r=structuredClone(found),s=state(id);if(s.pending)await s.pending;s.revision++;
       if(!await chrome.permissions.contains({origins:[originPermission(r.base)]}))throw new Error(t('Network permission missing. Edit and save the player, or grant access in Settings.'));
-      const api=apiFor(r),persist=async()=>{config=await saveRoomSnapshot(r);render();};
+      const api=apiFor(r),session=await beginPlayerSession(api,r,{recoveryToken:(await readJournal(id))?.sharedRecoveryToken});
+      const persist=async()=>{await session.commit();config=await saveRoomSnapshot(r);render();};
+      try{
+      config=await saveRoomSnapshot(r);s.syncWarning=session.warning;
       const progress=(text,percent=null)=>{op.text=text;op.percent=percent;render();if(editor?.roomId===id&&editor.busy){$('editor-progress-text').textContent=text;$('editor-progress').hidden=false;if(typeof percent==='number')$('editor-progress').value=percent;else $('editor-progress').removeAttribute('value');}};
       const ensure=async()=>{if(await readJournal(id))throw new Error(t('Complete playlist recovery before other changes.'));};
-      const value=await fn({r,api,persist,progress,ensure});result={ok:true,value};
+      const value=await fn({r,api,persist,progress,ensure,releaseState:()=>session.close(),sharedBefore:session.baseRevision,saveRecovery:async value=>{value.sharedRecoveryToken||=crypto.randomUUID();await saveJournal(id,value);await session.markRecovery(value.sharedRecoveryToken);},clearRecovery:async()=>{await session.markRecovery(null);await clearJournal(id);}});result={ok:true,value};
+      await session.commit();config=await saveRoomSnapshot(r);
       s.journal=await readJournal(id);
       if(refreshAfter)try{s.assets=await api.assets();s.online=true;s.updated=Date.now();s.error='';}catch(error){s.online=false;s.error=error.message;}
+      }finally{await session.close();}
     });
   }catch(error){state(id).operationError=error.message;log(id,{error:error.message});if(!silent)toast(error.message,'error');result={ok:false,error:error.message};state(id).journal=await readJournal(id).catch(()=>null);}
   finally{operations.delete(id);render();}return result;
 }
 async function activate(ctx,role){
-  await ctx.ensure();const result=await publishRoom(ctx.api,ctx.r,role,{persist:ctx.persist,autoCleanup:config.autoCleanup,progress:ctx.progress,saveJournal:value=>saveJournal(ctx.r.id,value),clearJournal:()=>clearJournal(ctx.r.id)});
+  await ctx.ensure();const result=await publishRoom(ctx.api,ctx.r,role,{persist:ctx.persist,autoCleanup:config.autoCleanup,progress:ctx.progress,saveJournal:ctx.saveRecovery,clearJournal:ctx.clearRecovery});
   Object.assign(state(ctx.r.id),{assets:result.assets,online:true,updated:Date.now(),error:''});render();
   if(ctx.r.cleanup.length)setTimeout(()=>void cleanRoom(ctx.r.id),3400);
   return result;
@@ -206,7 +213,7 @@ function openEditor(role,files=null){
   const existingItems=r.playlists[role].map(item=>({key:crypto.randomUUID(),id:item.id,file:null,kind:mediaKind(state(r.id).assets.find(a=>a.asset_id===item.id)),duration:item.duration??state(r.id).assets.find(a=>a.asset_id===item.id)?.duration??config.defaultImageDuration}));
   const items=files?Array.from(files).map(makeDraft):existingItems;
   if(items.length>100)throw new Error(t('A playlist can contain up to 100 items.'));
-  editor={roomId:r.id,role,items,original:JSON.stringify(r.playlists[role]),baseline:editorSnapshot(existingItems),busy:false,dragKey:null};
+  editor={roomId:r.id,role,items,sharedRevision:r.sharedRevision||'',original:JSON.stringify(r.playlists[role]),baseline:editorSnapshot(existingItems),busy:false,dragKey:null};
   setEditorBusy(false);$('editor-error').textContent='';$('editor-progress-text').textContent='';$('editor-progress').hidden=true;renderEditor();$('editor-dialog').showModal();
 }
 function setEditorBusy(value){if(!editor)return;editor.busy=value;for(const id of ['editor-close','editor-add','editor-library','editor-clear','editor-save','editor-publish'])$(id).disabled=value;$('editor-list').querySelectorAll('button,input').forEach(el=>{el.disabled=value;});}
@@ -279,7 +286,7 @@ async function saveEditor(publish){
     setEditorBusy(true);$('editor-error').textContent='';
     const result=await withRoom(draft.roomId,async ctx=>{
       await ctx.ensure();
-      if(JSON.stringify(ctx.r.playlists[draft.role])!==draft.original)throw new Error(t('A different tab changed this playlist. Reopen the editor before saving.'));
+      if((draft.sharedRevision||'')!==ctx.sharedBefore||JSON.stringify(ctx.r.playlists[draft.role])!==draft.original)throw new Error(t('A different tab changed this playlist. Reopen the editor before saving.'));
       if(publish&&draft.role==='event'){
         if(!ctx.r.playlists.home.length)throw new Error(t('Set a ready Home playlist before showing an event.'));
         const existing=await ctx.api.assets();for(const item of ctx.r.playlists.home)assertReady(existing.find(a=>a.asset_id===item.id));
@@ -287,7 +294,7 @@ async function saveEditor(publish){
       for(const item of draft.items)await uploadAssetOrCheck(ctx,draft.role,item);
       const assets=await ctx.api.assets();
       const items=draft.items.map(item=>({id:item.id,duration:mediaKind(assets.find(a=>a.asset_id===item.id))==='image'?item.duration:null}));
-      await mapPlaylist(ctx.r,draft.role,items,assets,ctx.persist);draft.original=JSON.stringify(items);draft.baseline=editorSnapshot(draft.items);
+      await mapPlaylist(ctx.r,draft.role,items,assets,ctx.persist);draft.sharedRevision=ctx.r.sharedRevision;draft.original=JSON.stringify(items);draft.baseline=editorSnapshot(draft.items);
       if(publish)return activate(ctx,draft.role);return {warning:'',unchanged:false};
     });
     if(result.ok){closeDialog('editor-dialog');editor=null;toast(result.value?.warning||t(publish?'Playlist published.':'Playlist saved; playback unchanged.'),result.value?.warning?'warning':'success');}
@@ -314,7 +321,7 @@ function renderLibrary(){
   const ref=library,picking=Boolean(ref.editor),term=$('library-search').value.toLowerCase();$('library-list').replaceChildren();
   $('library-title').textContent=`${label(r)} · ${t(picking?'Add from player media':'Player media')}`;
   $('library-note').textContent=t(picking?'Select files to add to Home. Playback changes only when you publish.':'You can delete any file, including live Home/Event media. Deletion is permanent and may interrupt playback.');
-  const assets=ref.assets.filter(a=>isLocalMedia(a)&&`${titleOf(a)} ${a.asset_id}`.toLowerCase().includes(term));
+  const assets=ref.assets.filter(a=>!isStateAsset(a)&&isLocalMedia(a)&&`${titleOf(a)} ${a.asset_id}`.toLowerCase().includes(term));
   if(!assets.length)$('library-list').append(node('p','muted',t('No matching files.')));
   for(const asset of assets){
     const row=node('div','library-row'),text=node('div','row-label'),name=node('strong','',titleOf(asset));name.title=name.textContent;row.dataset.asset=asset.asset_id;
@@ -474,14 +481,14 @@ async function rebootPlayer(id){
   const r=byId(id);if(!r||state(id).reboot||!await confirmAction(`${t('Reboot this player?')} · ${label(r)}`,t('Playback will stop while the player reboots.'),t('Reboot player'),true))return;
   if(infoRoomId===id)closeDialog('info-dialog');
   const result=await withRoom(id,async ctx=>{
-    await ctx.ensure();await ctx.api.reboot();
+    await ctx.ensure();await ctx.releaseState();await ctx.api.reboot();
     const now=Date.now(),s=state(id);s.reboot={requestedAt:now,notBefore:now+2500,deadline:now+120000,sawOffline:false,previousUptime:uptimeSeconds(s.info)};s.error='';s.operationError='';
   },{refreshAfter:false});
   if(result.ok){toast(`${label(r)}: ${t('Reboot requested.')}`);setTimeout(()=>void refreshRoom(id),3000);}
 }
 async function recover(){
   const id=selectedId;if(!await confirmAction(t('Recover previous playlist'),t('Restore settings from the interrupted operation? Later manual changes to the same assets may be overwritten.')))return;
-  const result=await withRoom(id,async ctx=>{const journal=await readJournal(id);if(!journal||journal.base!==ctx.r.base)throw new Error(t('Invalid recovery record.'));const errors=await restoreJournal(ctx.api,journal,ctx.progress);if(errors.length)throw new Error(`${t('Recovery incomplete. A recovery record has been kept.')} ${errors.join(' · ')}`);await clearJournal(id);});if(result.ok)toast(t('Recovery completed.'));
+  const result=await withRoom(id,async ctx=>{const journal=await readJournal(id);if(!journal||journal.base!==ctx.r.base)throw new Error(t('Invalid recovery record.'));const errors=await restoreJournal(ctx.api,journal,ctx.progress);if(errors.length)throw new Error(`${t('Recovery incomplete. A recovery record has been kept.')} ${errors.join(' · ')}`);await ctx.clearRecovery();});if(result.ok)toast(t('Recovery completed.'));
 }
 function downloadJson(name,data){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),a=node('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
 async function importConfigFile(file){
@@ -814,7 +821,7 @@ function bind(){
   action($('import-file'),e=>{const file=e.target.files[0];e.target.value='';if(file)return importConfigFile(file);},'change');
   $('router-gui').href=`https://${location.hostname}:8443/`;
   action($('remote-router'),()=>showGate('remote'));
-  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'1.0.1-vps',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')))});});
+  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'1.0.2-dev1-vps',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')))});});
   action($('open-anthias'),()=>openPlayerAccess(infoRoomId));
   action($('reboot'),()=>rebootPlayer(infoRoomId));action($('quick-reboot'),()=>rebootPlayer(selectedId));
   document.querySelectorAll('[data-close]').forEach(b=>action(b,()=>closeDialog(b.dataset.close)));

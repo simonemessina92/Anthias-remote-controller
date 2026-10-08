@@ -1,1 +1,1 @@
-{"name":"anthias-rooms-vps","version":"1.0.1","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs"}}
+{"name":"anthias-rooms-vps","version":"1.0.2-dev1","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs"}}

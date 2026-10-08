@@ -139,7 +139,7 @@ class Player:
                     a = asset(id, b['name'], Path(b['uri']).name)
                     a.update(b)
                     a['asset_id'] = id
-                    a['uri'] = '/data/anthias_assets/' + a['_file']
+                    a['uri'] = b['uri'] if b['mimetype'] == 'webpage' else '/data/anthias_assets/' + a['_file']
                     a['is_active'] = a['is_enabled']
                     a['duration'] = 2 if a['mimetype'] == 'video' else a['duration']
                     a['is_processing'] = player.processing > 0
