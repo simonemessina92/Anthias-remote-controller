@@ -1,20 +1,21 @@
-# Anthias Rooms VPS v1.0.1-dev5
+# Anthias Rooms VPS v1.0.1 GOLDEN
 
-- Repair legacy package ownership when APT history records architecture-independent packages using the host architecture. Existing DEV4 receipts are repaired automatically, including the missing icon, ALSA, desktop schema and GTK common packages. Foreign architectures remain distinct.
-- Installer-added sudo can be purged from a direct root session, including SSH-key authentication. A sudo-only session with locked root stops before removal. Pre-existing sudo is preserved.
-- Limit APT purge to installer-owned packages; unrelated automatic cleanup is disabled. Baseline packages remain protected.
-- Release publication requires real install → purge → reinstall → purge cycles on Debian 12, Debian 13 and Ubuntu 24.04, for both fresh installs and migration from the legacy installer with a broken DEV4 receipt. Tests leave a player GUI connection open during removal and compare the package baseline after each purge.
+[Download the complete ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/v1.0.1/Anthias_Rooms_VPS_v1.0.1.zip)
 
-Previous mobile layout, orientation, video preview and removal fixes remain available. No new runtime dependencies.
+- Set each player's screen orientation from Settings.
+- Responsive phone and tablet layouts, including navigation, player settings and playlist controls.
+- Server-generated video thumbnails, refresh feedback and disabled Already enrolled discovery results.
+- Remove all purges installer-added packages and configuration, closes old Nginx connections and frees the player GUI ports. Pre-existing packages and player media are preserved.
+- Recover legacy package ownership and automatically repair incomplete DEV4 receipts.
 
-Install on a test VPS as root:
+Run as root on the VPS:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
 ```
 
-An existing installation opens its current management menu. Select Remove all, confirm with REMOVE ALL, then run the command again to install this DEV. This deletes controller configuration and VPN keys; export your configuration first if you need it. Player media remain on the players. Import the newly generated WireGuard profile into the router.
+To replace an existing installation, select **2. Remove all**, type **REMOVE ALL**, then run the command again and select **1. Install**. Controller settings and VPN keys are deleted; export settings beforehand if needed. Import the new WireGuard profile into the router. Player media remain on the players.
 
-Firewall ports are unchanged: TCP 80, 443, 8443, 8444–8543; UDP 443. The installer now also installs FFmpeg. Main remains v1.0.0 GOLDEN.
+Firewall ports: TCP 80, 443, 8443, 8444–8543; UDP 443. FFmpeg is required for video thumbnails. Rotation can briefly interrupt playback. Thumbnails are file previews; video playback in the browser depends on codec support.
 
-Screen rotation reloads the Anthias viewer and can briefly interrupt playback. Video thumbnails are file previews, not a live HDMI return. Video preview playback still depends on browser codec support; the player continues to play the original file.
+Validation: 173 automated tests, five browser viewport checks and six full install/purge/reinstall/purge cycles on Debian 12, Debian 13 and Ubuntu 24.04. Field acceptance includes mobile layout, orientation, previews and removal. The local Chrome extension remains independent.

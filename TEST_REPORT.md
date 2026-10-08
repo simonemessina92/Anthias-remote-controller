@@ -15,9 +15,11 @@ The release workflow runs **173 tests**, plus browser regression checks at five 
 
 Syntax checks cover Bash, Python and frontend JavaScript. Nginx integration tests run with real Nginx/TLS in GitHub Actions; local environments without Nginx skip them. Test player payloads are synthetic. Backend tests use `AR_TEST=1` for loopback mock players and simulated WireGuard; production installation does not set it. Automated tests do not establish real HDMI playback or VPN performance.
 
-The DEV adds orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. DEV3 also checks navigation/sidebar separation, compact player labels and non-overlapping playlist image/video controls with long local filenames. Local execution passed 154 tests; the eight Nginx tests and browser checks require the release CI environment.
+The release includes orientation read/write tests, authenticated FFmpeg JPEG generation and enrollment revocation checks. Browser checks cover responsive layouts, video frames, orientation controls, refresh and disabled enrolled results. Browser regression coverage also checks navigation/sidebar separation, compact player labels and non-overlapping playlist image/video controls with long local filenames.
 
 ## Hardware acceptance
+
+The v1.0.1-dev5 field test confirmed operation, clean mobile layouts, orientation, previews and removal. Promotion to v1.0.1 GOLDEN was approved on 2026-10-08.
 
 The owner reports successful use with a real VPS, GL.iNet router and one Anthias player, including Home/Event operation, and explicitly approved v1.0.0 GOLDEN promotion on 2026-10-05. Simultaneous operation with multiple real players remains to be tested. The port allocator is covered automatically with 100 simulated mappings; this is not a 100-device hardware test.
 
@@ -38,6 +40,6 @@ python3 -m py_compile server.py wg-helper.py nginx-config.py
 
 Check the GitHub Actions run for the release commit before using its assets. Further acceptance should cover multiple real players, mobile layout, long uploads/video range requests, local emergency control and the chosen trusted certificate/backup procedures.
 
-DEV4 runs Remove all against a real disposable Nginx instance with an unfinished HTTP connection on player port 8444. It checks connection closure, thumbnail/database removal, continued shared-site operation and immediate address reuse. Pre-existing Nginx is preserved; restarting shared Nginx briefly interrupts its connections. Installer-added Nginx and other dependencies are purged. The package integration uses two disposable DEBs to verify removal of a package, its dependency and configuration files without touching baseline packages.
+Removal coverage runs Remove all against a real disposable Nginx instance with an unfinished HTTP connection on player port 8444. It checks connection closure, thumbnail/database removal, continued shared-site operation and immediate address reuse. Pre-existing Nginx is preserved; restarting shared Nginx briefly interrupts its connections. Installer-added Nginx and other dependencies are purged. The package integration uses two disposable DEBs to verify removal of a package, its dependency and configuration files without touching baseline packages.
 
-DEV5 publication additionally requires six complete installer lifecycle runs: Debian 12, Debian 13 and Ubuntu 24.04, each with fresh installation and legacy migration. These use disposable containers with real systemd, WireGuard, Nginx and APT; they check install, purge with a pending player connection, reinstall and a second purge, restoring the package baseline after both removals. Legacy cases deliberately recreate the broken DEV4 receipt for Architecture: all packages.
+Release publication additionally requires six complete installer lifecycle runs: Debian 12, Debian 13 and Ubuntu 24.04, each with fresh installation and legacy migration. These use disposable containers with real systemd, WireGuard, Nginx and APT; they check install, purge with a pending player connection, reinstall and a second purge, restoring the package baseline after both removals. Legacy cases deliberately recreate the broken DEV4 receipt for Architecture: all packages.

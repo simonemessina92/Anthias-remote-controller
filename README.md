@@ -1,16 +1,12 @@
 # Anthias Remote Controller
 
-**Anthias Rooms VPS v1.0.0 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
+**Anthias Rooms VPS v1.0.1 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
-## Development preview
+## Included in v1.0.1
 
-The `develop` branch provides **v1.0.1-dev5** with per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Use Settings → Players → Screen orientation to read or change the display rotation. FFmpeg is installed automatically for thumbnails. DEV5 records every package added by the bootstrap/installer, including transitive dependencies; Remove all purges those packages and their configuration, deletes cached JPEGs and closes old Nginx worker connections. The DEV bootstrap always uses the selected release installer, including removal of older installations. Legacy package ownership is recovered from matching APT history when available; DEV5 repairs existing DEV4 receipts that omitted architecture-independent packages.
+Per-player screen orientation, responsive phone/tablet layouts, server-generated video thumbnails, refresh feedback and disabled **Already enrolled** discovery results. Change rotation in Settings → Players → Screen orientation. FFmpeg is installed automatically for thumbnails.
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
-```
-
-Use a test VPS for this development version. See [development release notes](RELEASE_NOTES.md) for reinstall instructions and limitations.
+Remove all purges installer-added packages and their configuration, including transitive dependencies, removes cached thumbnails and closes old Nginx connections. Legacy package ownership is recovered from matching APT history; incomplete DEV4 receipts are repaired automatically.
 
 ## Stable installation and management
 
@@ -35,7 +31,7 @@ Temporary downloads are removed when the menu exits. Once installed, the same me
 bash /opt/anthias-rooms/install.sh
 ```
 
-On an existing managed installation, the curl command opens this local menu. It does not overwrite or upgrade the installation. To change versions, select **Remove all**, type **REMOVE ALL**, then run the chosen bootstrap again. Reinstallation creates new keys, so import the new WireGuard profile into the router. Player media remain on the players.
+The curl command always opens the pinned release management menu, including when removing an older installation. It does not upgrade an installed instance in place. To change versions, select **Remove all**, type **REMOVE ALL**, then run the chosen bootstrap again. Reinstallation creates new keys, so import the new WireGuard profile into the router. Player media remain on the players.
 
 Download the complete ZIP, bootstrap and checksums from [Releases](https://github.com/simonemessina92/Anthias-remote-controller/releases). An extracted ZIP also works: run `bash install.sh` inside its folder.
 
@@ -98,8 +94,8 @@ wg show arwg0
 
 Use SQLite's backup API or stop the service before copying `/var/lib/anthias-rooms`. Keep secure backups of `/etc/anthias-rooms` and `/etc/wireguard/arwg0.conf` separately. Automatic scheduled backups are not configured. WireGuard profiles contain private keys; do not publish profiles, settings, keys or the database.
 
-Remove all deletes the application, database, sessions, keys, dedicated tunnel, Nginx proxy configuration and installer-owned firewall rules. DEV5 also purges every package added by its bootstrap/installer, including dependencies and package configuration. Packages already present before installation and player content are preserved. It restarts active shared Nginx after deleting its site, briefly interrupting other sites; Nginx itself is purged only if the installer originally added it. Legacy installs use matching APT history to recover ownership. If ownership cannot be established or APT would remove unrelated packages, removal stops with the reason instead of guessing.
+Remove all deletes the application, database, sessions, keys, dedicated tunnel, Nginx proxy configuration and installer-owned firewall rules. It also purges every package added by its bootstrap/installer, including dependencies and package configuration. Packages already present before installation and player content are preserved. It restarts active shared Nginx after deleting its site, briefly interrupting other sites; Nginx itself is purged only if the installer originally added it. Legacy installs use matching APT history to recover ownership. If ownership cannot be established or APT would remove unrelated packages, removal stops with the reason instead of guessing.
 
-See [Italian documentation](README_IT.md), [test report](TEST_REPORT.md), [changelog](CHANGELOG.md) and [source baseline](BASELINE.md).
+See [test report](TEST_REPORT.md), [changelog](CHANGELOG.md) and [source baseline](BASELINE.md).
 
 Technical references: [WireGuard](https://www.wireguard.com/quickstart/), [GL.iNet remote LAN access](https://docs.gl-inet.com/router/en/4/tutorials/wireguard_server_access_to_client_lan_side/), [Nginx proxy](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).

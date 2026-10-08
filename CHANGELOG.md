@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1 GOLDEN
+
+- Promote the tested v1.0.1-dev5 runtime to the stable release.
+- Add player orientation, responsive layouts, video thumbnails and refresh/enrollment feedback.
+- Purge installer-added packages and configurations, repair legacy receipts and release occupied player ports during removal.
+
+
 ## v1.0.1-dev5
 
 - Normalize architecture-independent package identities during legacy recovery and repair existing DEV4 receipts.
