@@ -29,11 +29,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install browser dependencies
+      - name: Ensure FFmpeg for thumbnail tests
+        timeout-minutes: 3
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y ffmpeg
+          fi
+      - name: Install Playwright
+        timeout-minutes: 3
+        run: npm install --no-save --package-lock=false --fetch-retries=2 --fetch-timeout=30000 playwright@1.55.0
+      - name: Install Chromium and browser libraries
+        timeout-minutes: 4
+        run: npx playwright install --with-deps chromium
       - uses: actions/checkout@v4
         with:
           ref: 76ad9e71a97b538a5621e579dba0b56308a93777
