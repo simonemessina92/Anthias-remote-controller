@@ -44,7 +44,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - uses: actions/checkout@v4
         with:
-          ref: 76ad9e71a97b538a5621e579dba0b56308a93777
+          ref: b08d4ea55a618e322a883a95714e445b98bd0629
           path: tests/fixtures/chrome
       - name: Verify local Chrome and VPS synchronization
         env:

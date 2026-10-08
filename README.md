@@ -1,16 +1,16 @@
 # Anthias Remote Controller
 
-**Anthias Rooms VPS v1.0.1 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
+**Anthias Rooms VPS v1.0.2 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
-## Development: shared player playlists
+## Shared player playlists
 
-**VPS v1.0.2-dev1** and [Chrome v3.1.0-dev2](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.0-dev2) read and write shared Home/Event assignments on each Anthias player. Main remains v1.0.1 GOLDEN.
+**VPS v1.0.2** and [Chrome v3.1.1](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.1) read and write shared Home/Event assignments on each Anthias player. Both are approved GOLDEN releases and work independently. The VPS can be the primary controller and Chrome a local alternative.
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
 ```
 
-Use both updated controllers for the test. The player contains one disabled **[HMR] Controller state v1** web asset with assignments, prepared order/duration, published snapshot and a short operation lease. Its reserved `.invalid` URI is never used for playback; URL checks are disabled and the schedule is in the future. Keep this record disabled and do not rename it. No service or package is installed on the player.
+A local extension is optional; the VPS works on its own. The player contains one disabled **[HMR] Controller state v1** web asset with assignments, prepared order/duration, published snapshot and a short operation lease. Its reserved `.invalid` URI is never used for playback; URL checks are disabled and the schedule is in the future. Keep this record disabled and do not rename it. No service or package is installed on the player.
 
 Refresh reads shared assignments. A new remote revision invalidates an open editor and stale cleanup jobs. Recognized legacy upload names can recover a single inactive file or an unambiguous active playlist, but several inactive files with the same role require explicit selection. Legacy recognition does not authorize automatic deletion.
 
@@ -83,7 +83,7 @@ Native router/player GUIs require a panel session active within the last 90 seco
 
 Keep the panel tab open while Home/Event operations run: the backend stores state and handles transport, but it is not an autonomous job runner. Native GUI edits may require refreshing the Rooms panel. Player-side Anthias API authentication is not supported by this version. Each VPS instance has one remote network and one administrator account; it is not a multi-tenant service.
 
-The original local Chrome GOLDEN remains independent and does not support shared assignments. The development extension linked above shares Home/Event state with this DEV VPS. Local configuration can be imported after network setup if its addresses match the remote subnet; backups do not contain media.
+The current Chrome GOLDEN works independently on the local network and shares Home/Event state with this VPS when both are used. Local configuration can be imported after network setup if its addresses match the remote subnet; backups do not contain media.
 
 ## Branches and releases
 
@@ -95,7 +95,7 @@ The original local Chrome GOLDEN remains independent and does not support shared
 Development installation, on a separate test instance:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)
 ```
 
 ## Maintenance

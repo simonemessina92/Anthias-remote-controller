@@ -49,3 +49,5 @@ Release publication additionally requires six complete installer lifecycle runs:
 Thirteen state protocol tests cover legacy recognition/ambiguity, staged Home during Event playback, two-way changes, clean controller enrollment, native timing/order changes, manual deletion, malformed/duplicate records, lease exclusion/expiry/loss, stale cleanup invalidation and interrupted recovery.
 
 The release workflow loads the actual keyed Chrome extension alongside the VPS page against one synthetic HTTP player. It verifies native previews, orientation read/write, five viewport layouts, refresh, local-to-cloud changes, cloud-to-local changes, stale-editor rejection and Home restoration. The extension checkout is pinned to commit `76ad9e71a97b538a5621e579dba0b56308a93777`. Native Anthias API validation is based on the official asset API: names are text fields and create/PATCH expose name; skip_asset_check permits an inactive reserved web record. Hardware validation remains pending.
+
+The shared-controller field test confirmed upload and state synchronization from VPS to local Chrome and back. VPS v1.0.2 and Chrome v3.1.1 GOLDEN promotion was approved on 2026-10-08.

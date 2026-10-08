@@ -1,8 +1,8 @@
 # Changelog
 
-## v1.0.2-dev1
+## v1.0.2
 
-- Add player-resident Home/Event assignments shared with Chrome v3.1.0-dev2.
+- Add player-resident Home/Event assignments shared with Chrome v3.1.1.
 - Reconcile legacy upload labels, observe native timing/order and reject stale editor revisions.
 - Coordinate updated controllers with a cooperative lease, protect interrupted recovery and discard obsolete cleanup permissions.
 - Gate release on real extension/VPS interface interoperability.
