@@ -2,11 +2,11 @@
 
 ## Automated coverage
 
-The release workflow runs **186 tests**, plus browser regression checks at five viewport sizes:
+The release workflow runs **187 tests**, plus browser regression checks at five viewport sizes:
 
 | Suite | Tests | Coverage |
 |---|---:|---|
-| Node | 109 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
+| Node | 110 | Playlist engine, rollback, cleanup protections, Home memory, discovery, editor comparison, markup, manual deletion and tab sessions |
 | HTTP backend | 45 | Authentication, setup, leases, shared configuration, target restrictions, API proxy, uploads/previews, router authorization, VPN scan diagnostics, unique allocation of 100 player ports, stable mappings, revocation and tab token isolation |
 | WireGuard helper | 11 | LAN routes, split tunnel, keepalive, persistent keys, permissions, rejected subnets, missing handshake and unchanged configuration |
 | Package ownership/purge | 11 | Snapshot ownership, compressed legacy history, unrelated dependency protection, failed purge retries and real disposable DEB/conffile purge |

@@ -21,4 +21,4 @@ Remove the current VPS installation with option 2, confirm REMOVE ALL, then reru
 
 Leave **[HMR] Controller state v1** disabled in the native Anthias list. Refresh each controller after edits from the other. Older controllers/native Anthias do not participate in the cooperative lock: avoid concurrent writes. If publication is interrupted, recover it from its original controller.
 
-Validation includes 186 source tests, five VPS viewport checks, the real Chrome extension at five viewport sizes, two-way UI synchronization, stale-editor rejection and Home restoration, plus six complete VPS install/purge cycles. Physical-player acceptance is required before promotion.
+Validation includes 187 source tests, five VPS viewport checks, the real Chrome extension at five viewport sizes, two-way UI synchronization, stale-editor rejection and Home restoration, plus six complete VPS install/purge cycles. Physical-player acceptance is required before promotion.

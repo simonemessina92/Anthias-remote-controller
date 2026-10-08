@@ -8,7 +8,7 @@ permissions:
   contents: read
 concurrency:
   group: anthias-release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref_name == 'develop' }}
 jobs:
   install-purge-cycle:
     runs-on: ubuntu-24.04

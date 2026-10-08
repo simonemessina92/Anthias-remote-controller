@@ -58,11 +58,12 @@ export function migrateConfig(value) {
     defaultImageDuration:Number.isInteger(rawDuration)&&rawDuration>=1&&rawDuration<=86400?rawDuration:15,
     discovery:migrateDiscovery(value.discovery), rooms};
 }
-export async function loadConfig() {
+export async function loadConfig({locked=false}={}) {
   const {hmrConfig} = await chrome.storage.local.get('hmrConfig');
-  if (!hmrConfig) { const initial=defaultConfig(); await chrome.storage.local.set({hmrConfig:initial}); return initial; }
+  if (!hmrConfig) { if(!locked)return navigator.locks.request('hmr-config-v3',()=>loadConfig({locked:true}));const initial=defaultConfig(); await chrome.storage.local.set({hmrConfig:initial}); return initial; }
   const config=migrateConfig(hmrConfig);
   if(JSON.stringify(hmrConfig)!==JSON.stringify(config)) {
+    if(!locked)return navigator.locks.request('hmr-config-v3',()=>loadConfig({locked:true}));
     const prior=await chrome.storage.local.get('hmrConfigBeforeV5');
     await chrome.storage.local.set({...(!prior.hmrConfigBeforeV5?{hmrConfigBeforeV5:hmrConfig}:{}),hmrConfig:config});
   }
@@ -75,7 +76,7 @@ export const clearJournal = id => chrome.storage.local.remove(`hmrJournal:${id}`
 export async function updateConfig(mutator) {
   if(!navigator.locks) throw new Error(t('Open the panel from the Chrome extension.'));
   // Keep the existing lock name so two open revisions do not write concurrently.
-  return navigator.locks.request('hmr-config-v3',async()=>{const latest=await loadConfig();await mutator(latest);const valid=migrateConfig(latest);await saveConfig(valid);return valid;});
+  return navigator.locks.request('hmr-config-v3',async()=>{const latest=await loadConfig({locked:true});await mutator(latest);const valid=migrateConfig(latest);await saveConfig(valid);return valid;});
 }
 export async function saveRoomSnapshot(snapshot) {
   return updateConfig(latest=>{
