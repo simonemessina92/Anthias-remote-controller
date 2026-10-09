@@ -1,18 +1,12 @@
 # Anthias Remote Controller
 
-**Anthias Rooms VPS v1.0.2 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
+**Anthias Rooms VPS v1.0.3 GOLDEN** is a cloud control panel for Anthias digital signage players connected through a remote WireGuard router. Use it from a desktop or mobile browser without installing Chrome or an extension. The interface supports **English and Italian**.
 
-## Mobile DEV v1.0.3-dev1
-
-The stable release remains VPS v1.0.2 GOLDEN. This DEV uses a compact vertical player list on phones and tablets, with touch scrolling and no horizontal carousel.
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/develop/bootstrap.sh)
-```
+On phones and tablets, players appear in a compact vertical list. Swipe up/down inside the list to select another player. Desktop navigation uses the sidebar.
 
 ## Shared player playlists
 
-**VPS v1.0.2** and [Chrome v3.1.1](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.1) read and write shared Home/Event assignments on each Anthias player. Both are approved GOLDEN releases and work independently. The VPS can be the primary controller and Chrome a local alternative.
+**VPS v1.0.3** and [Chrome v3.1.1](https://github.com/simonemessina92/Anthias-remote-controller/releases/tag/chrome-v3.1.1) read and write shared Home/Event assignments on each Anthias player. Both are approved GOLDEN releases and work independently. The VPS can be the primary controller and Chrome a local alternative.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/simonemessina92/Anthias-remote-controller/main/bootstrap.sh)

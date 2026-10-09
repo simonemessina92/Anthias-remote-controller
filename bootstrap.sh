@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-VERSION=1.0.3-dev1
+VERSION=1.0.3
 REPO=simonemessina92/Anthias-remote-controller
 [[ $EUID == 0 ]] || { echo 'Run this command as root on the VPS.' >&2; exit 1; }
 command -v curl >/dev/null || { echo 'Install curl before running the bootstrap.' >&2; exit 1; }

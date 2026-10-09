@@ -240,7 +240,7 @@ remove_all(){
   printf '  Anthias Rooms removed.\n  Removed: app, database, keys, tunnel and router/player access.\n  Player content: preserved.\n  Installer-owned packages: purged. Pre-existing system packages: preserved.\n\n'
 }
 trap 'echo "Installation/action stopped at line $LINENO. Review the error above before retrying." >&2' ERR
-heading 'ANTHIAS ROOMS VPS v1.0.3-dev1 DEV'
+heading 'ANTHIAS ROOMS VPS v1.0.3 GOLDEN'
 printf '  1. Install\n  2. Remove all\n\n'
 read -r -p 'Select: ' choice
 case "$choice" in 1) install_app;; 2) remove_all;; *) fail 'Choose 1 or 2.';; esac

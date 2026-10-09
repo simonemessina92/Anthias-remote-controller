@@ -1,3 +1,7 @@
+# v1.0.3 GOLDEN
+
+Compact vertical player selection with touch scrolling on phones and tablets. Desktop sidebar unchanged.
+
 # Changelog
 
 ## v1.0.2

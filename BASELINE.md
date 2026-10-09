@@ -19,3 +19,5 @@ VPS **v1.0.2-dev1** added `web/player-state.js` and updates panel, storage and t
 The published VPS package uses commit `6bf16c5ef074f41cfb6df6085675ba04cefc4cd6`; the development integration test pinned Chrome commit `76ad9e71a97b538a5621e579dba0b56308a93777`. VPS v1.0.2 GOLDEN and Chrome v3.1.1 GOLDEN retain the tested runtime with updated stable version labels. Two-way synchronization was confirmed on a physical player and approved for promotion.
 
 Published release assets remain unchanged when repository documentation is corrected. The release tag identifies the exact packaged source.
+
+VPS v1.0.3 GOLDEN promotes the approved mobile GUI correction from v1.0.3-dev1 commit `470a78e0b74a7b02abcbb67c4103de4b338047ba`. Runtime changes are limited to mobile player-list styling; stable promotion updates version labels and documentation.
