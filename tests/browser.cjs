@@ -28,6 +28,19 @@ const fs=require('fs'),assert=require('assert');
   assert(await page.locator('#event-preview img').evaluate(e=>e.naturalWidth>0),'video thumbnail absent');
   const overflow=await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth}));assert(overflow.sw<=overflow.w+1,JSON.stringify(overflow));
   await separate(page,'.main-nav','.sidebar-title');
+  // Real multi-player selection: mobile list must scroll vertically, never hide peers horizontally.
+  const original=await page.evaluate(async()=>{const {loadConfig,updateConfig,newRoom}=await import('./storage.js');const original=await loadConfig();await updateConfig(c=>{for(let i=2;i<=8;i++){const r=newRoom('Mobile player '+i,'',i);r.id='mobile-'+i;c.rooms.push(r);}c.nextPlayerNumber=9;});return original;});
+  await page.reload();await page.waitForSelector('#app:not([hidden])');await page.waitForSelector('#room-list [data-room="mobile-8"]');
+  if(size[0]<=900){
+   const list=await page.locator('#room-list').evaluate(e=>({width:e.clientWidth,scrollWidth:e.scrollWidth,height:e.clientHeight,scrollHeight:e.scrollHeight,touch:getComputedStyle(e).touchAction}));
+   assert(list.scrollWidth<=list.width+1,'Mobile player list overflows horizontally');assert(list.scrollHeight>list.height,'Multi-player list is not vertically scrollable');assert.equal(list.touch,'pan-y');
+   await page.locator('#room-list').evaluate(e=>{e.scrollTop=e.scrollHeight;});
+  }
+  await page.locator('#room-list [data-room="mobile-8"]').click();assert.equal(await page.locator('#room-title').innerText(),'Mobile player 8');
+  await page.locator('#room-list [data-room="mobile-2"]').click();assert.equal(await page.locator('#room-title').innerText(),'Mobile player 2');
+  await page.evaluate(async original=>{const {updateConfig}=await import('./storage.js');await updateConfig(c=>Object.assign(c,original));},original);
+  await page.reload();await page.waitForSelector('#app:not([hidden])');await page.waitForFunction(()=>document.querySelector('#event-preview img')?.naturalWidth>0);
+
   await page.click('#nav-settings');
   if(size[0]<=900){const label=await page.locator('#settings-rooms .row-label').boundingBox();assert(label.height<80,'Player label stretched vertically');}
   const heading=await page.locator('.settings-heading h1').boundingBox();assert(heading.width>90,'Settings squeezed');
