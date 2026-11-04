@@ -70,6 +70,18 @@ function errorText(body, status) {
     : t('HTTP error {status}.',{status});
   return `${help}${detail ? ' ' + detail : ''}`;
 }
+/* Anthias reports free space as Django filesizeformat text, e.g. "24.2 GB" or "0 bytes". */
+export function parseFreeSpace(text) {
+  const match = /^\s*([\d.,]+)\s*(bytes?|KB|MB|GB|TB)\s*$/i.exec(String(text ?? '').replace(/\u00a0/g, ' '));
+  if (!match) return null;
+  const units = {byte: 0, bytes: 0, kb: 1, mb: 2, gb: 3, tb: 4};
+  const value = Number(match[1].replace(',', '.'));
+  return Number.isFinite(value) ? value * 1024 ** units[match[2].toLowerCase()] : null;
+}
+// A full disk makes Anthias answer while the browser is still sending, which XHR reports as a dropped connection.
+export function lowSpace(freeBytes, fileSize) {
+  return freeBytes !== null && freeBytes < Math.max(fileSize * 2, 100 * 1024 * 1024);
+}
 export class AnthiasApi {
   constructor(base, log = () => {}) { this.base = normalizeBase(base); this.log = log; }
   async request(path, {method = 'GET', body, timeout = 20000, signal} = {}) {
@@ -139,7 +151,14 @@ export class AnthiasApi {
         this.log({method: 'POST', path: '/api/v2/file_asset', status: 0, error: reason});
         reject(new ApiError(reason));
       };
-      xhr.onerror = () => fail(t('Upload interrupted. Existing playback has not been disabled.'));
+      xhr.onerror = async () => {
+        const message = t('Upload interrupted. Existing playback has not been disabled.');
+        let free = null;
+        try { free = (await this.request('/api/v2/info', {timeout: 8000}))?.free_space ?? null; } catch {}
+        if (free === null) return fail(`${message} ${t('The player did not answer afterwards: check the network between this computer and the player.')}`);
+        if (lowSpace(parseFreeSpace(free), file.size)) return fail(`${message} ${t('Player storage is almost full ({free} free). Free space on the player or update Anthias before retrying.',{free})}`);
+        fail(`${message} ${t('The player answers and reports {free} free: the transfer was cut between this computer and the player (router, firewall or proxy).',{free})}`);
+      };
       xhr.ontimeout = () => fail(t('Upload exceeded 15 minutes. Check the player before retrying.'));
       xhr.onabort = () => fail(t('Upload cancelled.'));
       const form = new FormData();
