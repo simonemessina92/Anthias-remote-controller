@@ -133,8 +133,11 @@ async function refreshRoom(id,{duringOperation=false}={}){
         else if(Date.now()>reboot.deadline){s.reboot=null;toast(`${label(r)}: ${t('Player is reachable. Restart could not be confirmed.')}`,'warning');}
         else{s.assets=assets;s.online=true;s.error='';return;}
       }
-      if(!await readJournal(id))config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target&&target.base===base&&s.revision===revision){const sync=reconcilePlayer(target,assets);s.syncWarning=sync.warning;}});
-      s.assets=assets;s.online=true;s.updated=Date.now();s.error='';
+      // The player answered: a shared-state problem must not be reported as "unreachable". Writes re-read the record and stay blocked.
+      let stateError='';
+      if(!await readJournal(id))try{config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target&&target.base===base&&s.revision===revision){const sync=reconcilePlayer(target,assets);s.syncWarning=sync.warning;}});}catch(error){stateError=error.message;s.syncWarning=stateError;}
+      s.assets=assets;s.online=true;s.updated=Date.now();s.error=stateError;
+      if(stateError&&s.stateError!==stateError&&id===selectedId&&admitted)toast(`${label(r)}: ${stateError}`,'error');s.stateError=stateError;
       setTimeout(()=>void resumeManualReceipt(id).catch(error=>log(id,{error:error.message})),0);
       if(wasOnline===false&&!s.reboot&&id===selectedId)log(id,{connection:'online'});
     }catch(error){

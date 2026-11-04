@@ -78,3 +78,13 @@ test('interrupted publication blocks other controllers until origin recovery',as
  await assert.rejects(begin(m.make(),newRoom()),/Recover/);
  const recovery=await begin(m.make(),r,{recoveryToken:'journal-token'});await recovery.markRecovery(null);await recovery.close();const other=await begin(m.make(),newRoom());await other.close();
 });
+test('native image durations outside the shared range still produce a valid shared record',()=>{
+ for(const native of [0,15.5,100000,31536000]){
+  const a={...media('img1','Home',true),duration:native};
+  const room=newRoom('San Carlo','192.168.81.53',1);room.playlists.home=[{id:'img1',duration:15}];room.lastPublished={role:'home',items:[{id:'img1',duration:15}]};
+  reconcilePlayer(room,[a]);
+  const data={schema:1,revision:'r1',playlists:room.playlists,lastPublished:room.lastPublished,homeHistory:room.homeHistory,eventHistory:room.eventHistory,uploadedIds:room.uploadedIds,managedEventIds:room.managedEventIds,recovery:null,lease:null};
+  const decoded=decodeState({uri:STATE_URI,is_enabled:false,name:encodeState(data)});
+  const d=decoded.lastPublished.items[0].duration;assert.ok(Number.isInteger(d)&&d>=1&&d<=86400,`native ${native} -> ${d}`);
+ }
+});
