@@ -2,7 +2,7 @@ import {reconcilePlayer,beginPlayerSession,isStateAsset} from './player-state.js
 import {readOrientation,writeOrientation} from './display-settings.js';
 import {t,setLanguage,getLanguage,translateDOM} from './i18n.js';
 import {AnthiasApi,normalizeBase,originPermission,mediaKind,isLocalMedia,assertReady,processingError,fileKind} from './api.js';
-import {loadConfig,migrateConfig,updateConfig,saveRoomSnapshot,appendPlayer,newRoom,normalizeName,unique,itemIds,readJournal,saveJournal,clearJournal,exportConfig} from './storage.js';
+import {loadConfig,migrateConfig,updateConfig,saveRoomSnapshot,appendPlayer,newRoom,normalizeName,unique,itemIds,readJournal,saveJournal,clearJournal,exportConfig,movePlayer} from './storage.js';
 import {MANUAL_SCHEDULE,playlistState,restoreJournal} from './logic.js';
 import {publishRoom,mapPlaylist,cleanupRoom} from './lifecycle.js';
 import {deleteMedia,deletionPlan,deletionMessage,reconcileDeletion,validDeletionReceipt} from './manual-delete.js';
@@ -70,6 +70,8 @@ function renderRooms(){
     b.querySelector('.room-num').textContent=String(r.number).padStart(2,'0');b.querySelector('strong').textContent=r.name;b.querySelector('small').textContent=`${t('Player {number}',{number:r.number})} · ${operations.has(r.id)?t('Operation in progress…'):statusLabel(mode(r).role)}`;
     b.querySelector('.tiny-dot').className=`tiny-dot ${online(r)?'online':state(r.id).online===false?'offline':''}`;
   }
+  // Keep the sidebar in configuration order after a reorder; append() moves existing nodes without recreating them.
+  const order=config.rooms.map(r=>roomNodes.get(r.id));if(order.some((el,i)=>$('room-list').children[i]!==el))order.forEach(el=>$('room-list').append(el));
   $('room-count').textContent=config.rooms.length;$('room-search').hidden=config.rooms.length<7;
   $('fleet-status').textContent=t('{online} / {total} connected',{online:config.rooms.filter(online).length,total:config.rooms.length});
 }
@@ -399,10 +401,10 @@ function renderSettings(){
   $('security-status').textContent=t(security?.enabled?'Password enabled':'Password disabled');$('change-password').textContent=t(security?.enabled?'Change password':'Set password');$('disable-password').hidden=!security?.enabled;
   const signature=JSON.stringify([getLanguage(),config.rooms.map(r=>[r.id,r.number,r.name,r.base])]);
   if(signature!==settingsSignature){settingsSignature=signature;$('settings-rooms').replaceChildren();
-    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions');actions.append(button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Screen orientation'),'btn secondary',()=>openOrientation(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
+    for(const r of config.rooms){const row=node('div','settings-row');row.dataset.room=r.id;const text=node('div','row-label');text.append(node('strong','',r.name),node('small','',`${t('Player {number}',{number:r.number})} · ${r.base?new URL(r.base).host:t('Not configured')}`));const actions=node('div','row-actions'),index=config.rooms.indexOf(r),up=button('↑','icon-btn move-player',()=>reorderPlayer(r.id,-1)),down=button('↓','icon-btn move-player',()=>reorderPlayer(r.id,1));up.dataset.edge=String(index===0);down.dataset.edge=String(index===config.rooms.length-1);up.title=t('Move up');down.title=t('Move down');up.setAttribute('aria-label',`${t('Move up')} · ${r.name}`);down.setAttribute('aria-label',`${t('Move down')} · ${r.name}`);actions.append(up,down,button(t('Edit'),'text-btn',()=>openPlayer(r.id)),button(t('Screen orientation'),'btn secondary',()=>openOrientation(r.id)),button(t('Info'),'text-btn',()=>openInfo(r.id)),button(t('Remove'),'text-btn',()=>removePlayer(r.id)));row.append(text,actions);$('settings-rooms').append(row);}
     if(!config.rooms.length)$('settings-rooms').append(node('p','muted',t('No players yet')));
   }
-  for(const row of $('settings-rooms').children){if(!row.dataset.room)continue;row.querySelectorAll('button').forEach(b=>{b.disabled=operations.has(row.dataset.room);});}
+  for(const row of $('settings-rooms').children){if(!row.dataset.room)continue;row.querySelectorAll('button').forEach(b=>{b.disabled=operations.has(row.dataset.room)||(b.classList.contains('move-player')&&(operations.size>0||b.dataset.edge==='true'));});}
 }
 function openPlayer(id=null){
   if(id&&operations.has(id))throw new Error(t('Finish the current operation first.'));editingId=id;const r=id?byId(id):null;
@@ -439,6 +441,12 @@ async function savePlayer(e){
 async function rememberIdentity(id){
   const r=byId(id);if(!r?.base||r.identity||!admitted)return;
   try{const found=await identifyPlayer(r.base,{timeout:20000});if(found.identity&&byId(id)?.base===r.base)config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target?.base===r.base&&!target.identity)target.identity=found.identity;});}catch{/* Identity is optional; normal control does not wait for it. */}
+}
+async function reorderPlayer(id,delta){
+  // Order is local panel configuration only: no player request, no shared-state write.
+  if(operations.size)throw new Error(t('Finish the current operation first.'));
+  await requireUnlocked();let moved=false;config=await updateConfig(latest=>{moved=movePlayer(latest,id,delta);});
+  render();if(moved)requestAnimationFrame(()=>$('settings-rooms').querySelector(`[data-room="${id}"] .move-player:not([disabled])`)?.focus());
 }
 async function removePlayer(id){
   const r=byId(id);if(!r||operations.has(id))return;
@@ -848,7 +856,7 @@ function bind(){
   action($('copy-panel-address'),async()=>{await requireUnlocked();const copied=await copyPanelAddress($('panel-address'));toast(t(copied?'Panel address copied.':'Copy was blocked by the browser. The address is selected: press Ctrl+C or use Copy.'),copied?'success':'warning');});
   action($('export-config'),async()=>{await requireUnlocked();downloadJson('anthias-rooms-config.json',exportConfig(config));});action($('import-config'),()=>$('import-file').click());
   action($('import-file'),e=>{const file=e.target.files[0];e.target.value='';if(file)return importConfigFile(file);},'change');
-  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'3.1.2-dev1',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')||key.startsWith('hmrManualDelete:')))});});
+  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'3.1.2-dev2',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')||key.startsWith('hmrManualDelete:')))});});
   action($('open-anthias'),()=>{const r=byId(infoRoomId);if(r?.base)chrome.tabs.create({url:r.base});});
   action($('reboot'),()=>rebootPlayer(infoRoomId));action($('quick-reboot'),()=>rebootPlayer(selectedId));
   document.querySelectorAll('[data-close]').forEach(b=>action(b,()=>closeDialog(b.dataset.close)));

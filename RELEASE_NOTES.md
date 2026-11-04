@@ -1,7 +1,8 @@
-# Anthias Rooms Chrome v3.1.2-dev1 DEV
+# Anthias Rooms Chrome v3.1.2-dev2 DEV
 
-[Download ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/chrome-v3.1.2-dev1/Anthias_Rooms_Chrome_v3.1.2-dev1.zip)
+[Download ZIP](https://github.com/simonemessina92/Anthias-remote-controller/releases/download/chrome-v3.1.2-dev2/Anthias_Rooms_Chrome_v3.1.2-dev2.zip)
 
+- Reorder players in Settings → Players with the ↑ ↓ buttons. Player numbers follow the new order (the first is always Player 1) in the sidebar and in Settings. Only the local panel configuration changes: no request to the players and no shared-state write. Reordering is disabled while an operation is running.
 - When an upload is interrupted, ask the player for its free space and say whether the cause is a nearly full player disk or the network between the computer and the player (router, firewall, proxy). Anthias answers a full disk while the browser is still sending, which Chrome reports as a dropped connection.
 - Fix: an image whose duration was changed in the native Anthias UI to 0 s, a fraction, or more than 24 h was copied as-is into the shared record, which every controller then rejected as invalid. Observed durations are now clamped to 1..86400 s.
 - Fix: an invalid shared record no longer shows a reachable player as "Unreachable". The player stays connected, the record error is shown, and changes remain blocked until it is resolved.

@@ -87,6 +87,14 @@ export async function saveRoomSnapshot(snapshot) {
 export function appendPlayer(config,name,base,identity='') {
   const player=newRoom(name,base,config.nextPlayerNumber++);player.identity=identity;config.rooms.push(player);return player;
 }
+// Move a player one position up (-1) or down (+1). Numbers follow the visible order so "Player 1" is always first.
+export function movePlayer(config,id,delta) {
+  const from=config.rooms.findIndex(r=>r.id===id), to=from+delta;
+  if(from<0||![-1,1].includes(delta)||to<0||to>=config.rooms.length) return false;
+  const [moved]=config.rooms.splice(from,1);config.rooms.splice(to,0,moved);
+  config.rooms.forEach((r,index)=>{r.number=index+1;});config.nextPlayerNumber=config.rooms.length+1;
+  return true;
+}
 export function exportConfig(config) {
   const copy=structuredClone(config);copy.setupComplete=true;copy.wizardDraft=null;
   // Cleanup is tied to the originating controller's acknowledged switch, not portable.
