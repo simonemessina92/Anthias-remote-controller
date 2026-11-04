@@ -133,8 +133,11 @@ async function refreshRoom(id,{duringOperation=false}={}){
         else if(Date.now()>reboot.deadline){s.reboot=null;toast(`${label(r)}: ${t('Player is reachable. Restart could not be confirmed.')}`,'warning');}
         else{s.assets=assets;s.online=true;s.error='';return;}
       }
-      if(!await readJournal(id))config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target&&target.base===base&&s.revision===revision){const sync=reconcilePlayer(target,assets);s.syncWarning=sync.warning;}});
-      s.assets=assets;s.online=true;s.updated=Date.now();s.error='';
+      // The player answered: a shared-state problem must not be reported as "unreachable". Writes re-read the record and stay blocked.
+      let stateError='';
+      if(!await readJournal(id))try{config=await updateConfig(latest=>{const target=latest.rooms.find(x=>x.id===id);if(target&&target.base===base&&s.revision===revision){const sync=reconcilePlayer(target,assets);s.syncWarning=sync.warning;}});}catch(error){stateError=error.message;s.syncWarning=stateError;}
+      s.assets=assets;s.online=true;s.updated=Date.now();s.error=stateError;
+      if(stateError&&s.stateError!==stateError&&id===selectedId&&admitted)toast(`${label(r)}: ${stateError}`,'error');s.stateError=stateError;
       setTimeout(()=>void resumeManualReceipt(id).catch(error=>log(id,{error:error.message})),0);
       if(wasOnline===false&&!s.reboot&&id===selectedId)log(id,{connection:'online'});
     }catch(error){
@@ -845,7 +848,7 @@ function bind(){
   action($('copy-panel-address'),async()=>{await requireUnlocked();const copied=await copyPanelAddress($('panel-address'));toast(t(copied?'Panel address copied.':'Copy was blocked by the browser. The address is selected: press Ctrl+C or use Copy.'),copied?'success':'warning');});
   action($('export-config'),async()=>{await requireUnlocked();downloadJson('anthias-rooms-config.json',exportConfig(config));});action($('import-config'),()=>$('import-file').click());
   action($('import-file'),e=>{const file=e.target.files[0];e.target.value='';if(file)return importConfigFile(file);},'change');
-  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'3.1.1',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')||key.startsWith('hmrManualDelete:')))});});
+  action($('diagnostics'),async()=>{await requireUnlocked();const local=await chrome.storage.local.get(null);downloadJson('anthias-rooms-diagnostics.json',{version:'3.1.2-dev1',createdAt:new Date().toISOString(),config:exportConfig(config),players:config.rooms.map(r=>({id:r.id,number:r.number,online:state(r.id).online,error:state(r.id).error,operationError:state(r.id).operationError,info:state(r.id).info,assets:state(r.id).assets})),logs,pending:Object.fromEntries(Object.entries(local).filter(([key])=>key.startsWith('hmrJournal:')||key.startsWith('hmrUpload:')||key.startsWith('hmrManualDelete:')))});});
   action($('open-anthias'),()=>{const r=byId(infoRoomId);if(r?.base)chrome.tabs.create({url:r.base});});
   action($('reboot'),()=>rebootPlayer(infoRoomId));action($('quick-reboot'),()=>rebootPlayer(selectedId));
   document.querySelectorAll('[data-close]').forEach(b=>action(b,()=>closeDialog(b.dataset.close)));

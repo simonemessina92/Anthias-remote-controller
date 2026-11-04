@@ -37,7 +37,10 @@ export function readState(assets){
 const fieldKeys=['playlists','lastPublished','homeHistory','eventHistory','uploadedIds','managedEventIds'];
 function portable(room){return Object.fromEntries(fieldKeys.map(k=>[k,structuredClone(room[k])]));}
 const validItems=(list,assets)=>list.filter(x=>assets.some(a=>a.asset_id===x.id&&isLocalMedia(a)));
-const liveItems=assets=>ordered(assets.filter(a=>a.is_enabled&&isLocalMedia(a))).map(a=>({id:a.asset_id,duration:mediaKind(a)==='image'?a.duration:null}));
+// Anthias accepts image durations from 0 s up to one year; shared state keeps 1..86400 integers.
+// Clamp observed native values so a native edit can never produce a record every controller rejects.
+export const sharedDuration=d=>{const n=Math.round(Number(d));return Number.isFinite(n)?Math.min(86400,Math.max(1,n)):null;};
+const liveItems=assets=>ordered(assets.filter(a=>a.is_enabled&&isLocalMedia(a))).map(a=>({id:a.asset_id,duration:mediaKind(a)==='image'?sharedDuration(a.duration):null}));
 export function reconcilePlayer(room,assets,{recoveryToken}={}){
  const before=JSON.stringify({...portable(room),sharedRevision:room.sharedRevision}),record=readState(assets);let warning='';
  if(record){
@@ -55,7 +58,7 @@ export function reconcilePlayer(room,assets,{recoveryToken}={}){
    if(!room.playlists[role].length){
     const active=named.filter(a=>a.is_enabled);
     if(active.length&&matchesActive(assets,active.map(a=>({id:a.asset_id}))))room.playlists[role]=liveItems(assets);
-    else if(named.length===1)room.playlists[role]=named.map(a=>({id:a.asset_id,duration:mediaKind(a)==='image'?a.duration:null}));
+    else if(named.length===1)room.playlists[role]=named.map(a=>({id:a.asset_id,duration:mediaKind(a)==='image'?sharedDuration(a.duration):null}));
     else if(named.length>1)warning=t('Several legacy files have the same role. Select the intended playlist before publishing.');
    }
   }
